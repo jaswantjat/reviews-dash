@@ -20,11 +20,11 @@ export function LiveClock() {
 
   return (
     <div className="flex flex-col items-end gap-0.5">
-      <div className="font-display font-bold text-white tracking-tight" style={{ fontSize: "2.2rem", lineHeight: 1 }}>
+      <div className="font-display font-bold tracking-tight" style={{ fontSize: "2rem", lineHeight: 1, color: "#0f172a" }}>
         {hh}:{mm}
-        <span style={{ color: "#8b9cf7" }}>:{ss}</span>
+        <span style={{ color: "#5b6cf0" }}>:{ss}</span>
       </div>
-      <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>{dateStr}</div>
+      <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#94a3b8" }}>{dateStr}</div>
     </div>
   );
 }

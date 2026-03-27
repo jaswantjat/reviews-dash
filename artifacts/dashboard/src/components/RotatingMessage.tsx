@@ -32,7 +32,7 @@ export function RotatingMessage() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.35 }}
             className="absolute inset-0 font-display font-semibold text-sm leading-6 whitespace-nowrap"
-            style={{ color: "rgba(255,255,255,0.4)" }}
+            style={{ color: "#64748b" }}
           >
             {MESSAGES[index]}
           </motion.p>

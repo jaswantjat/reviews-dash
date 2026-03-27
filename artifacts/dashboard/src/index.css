@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700;800&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
@@ -32,24 +32,24 @@
 }
 
 :root {
-  --background: 228 14% 8%;
-  --foreground: 210 20% 95%;
-  --card: 228 14% 11%;
-  --card-foreground: 210 20% 95%;
-  --primary: 234 85% 65%;
+  --background: 225 40% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --primary: 234 80% 63%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 228 14% 16%;
-  --secondary-foreground: 210 20% 90%;
-  --muted: 228 12% 18%;
-  --muted-foreground: 215 16% 55%;
-  --accent: 234 60% 55%;
+  --secondary: 225 30% 94%;
+  --secondary-foreground: 222 30% 30%;
+  --muted: 225 25% 93%;
+  --muted-foreground: 220 15% 55%;
+  --accent: 234 80% 63%;
   --accent-foreground: 0 0% 100%;
-  --success: 158 64% 45%;
-  --warning: 38 92% 55%;
-  --destructive: 0 72% 55%;
+  --success: 158 60% 40%;
+  --warning: 38 90% 50%;
+  --destructive: 0 70% 52%;
   --destructive-foreground: 0 0% 100%;
-  --border: 228 12% 18%;
-  --ring: 234 85% 65%;
+  --border: 225 25% 89%;
+  --ring: 234 80% 63%;
   --radius: 1rem;
 }
 
@@ -65,35 +65,21 @@
 @layer utilities {
   .font-display { font-family: var(--font-display); }
 
-  .glass-card {
-    background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
-    border: 1px solid rgba(255,255,255,0.08);
-    backdrop-filter: blur(20px);
-    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+  .surface-card {
+    background: #ffffff;
+    border: 1px solid #e6eaf5;
+    box-shadow: 0 1px 3px rgba(91, 108, 240, 0.04), 0 4px 16px rgba(91, 108, 240, 0.05);
   }
 
-  .glass-card-elevated {
-    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
-    border: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(24px);
-    box-shadow: 0 8px 32px -4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
-  }
-
-  .card {
-    background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
-  }
-
-  .card-elevated {
-    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 8px 32px -4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+  .surface-card-elevated {
+    background: #ffffff;
+    border: 1px solid #e6eaf5;
+    box-shadow: 0 2px 8px rgba(91, 108, 240, 0.06), 0 8px 24px rgba(91, 108, 240, 0.07);
   }
 
   .label {
     @apply text-xs font-semibold uppercase tracking-widest;
-    color: rgba(255,255,255,0.45);
+    color: #94a3b8;
   }
 
   .live-dot {
@@ -103,29 +89,19 @@
     background: #10b981;
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
     animation: pulse-ring 2s ease-in-out infinite;
+    display: inline-block;
+    flex-shrink: 0;
   }
 
   @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-  }
-
-  @keyframes gradient-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+    0%   { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0.4); }
+    70%  { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0); }
   }
 
   @keyframes shimmer {
-    0% { opacity: 0.5; }
-    50% { opacity: 1; }
-    100% { opacity: 0.5; }
-  }
-
-  .bg-mesh {
-    background-image:
-      radial-gradient(ellipse 60% 50% at 10% 90%, rgba(91,108,240,0.12) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 40% at 85% 15%, rgba(124,77,255,0.10) 0%, transparent 55%),
-      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(91,108,240,0.04) 0%, transparent 50%);
+    0%   { opacity: 0.6; }
+    50%  { opacity: 1; }
+    100% { opacity: 0.6; }
   }
 }
