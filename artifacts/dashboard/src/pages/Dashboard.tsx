@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useDashboardData, useTriggerRefresh } from "@/hooks/use-dashboard";
 import { LiveClock } from "@/components/LiveClock";
 import { ProgressRing } from "@/components/ProgressRing";
