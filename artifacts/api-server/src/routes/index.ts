@@ -1,0 +1,10 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health.js";
+import dashboardRouter from "./dashboard.js";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(dashboardRouter);
+
+export default router;

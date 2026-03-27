@@ -1,0 +1,222 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Eltex Reviews Dashboard API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: dashboard
+    description: Dashboard data
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get dashboard data
+      description: Returns cached review scores, ticket stats, and metadata
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardData"
+  /dashboard/refresh:
+    post:
+      operationId: refreshDashboard
+      tags: [dashboard]
+      summary: Trigger a manual refresh of review data
+      responses:
+        "200":
+          description: Refresh triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResult"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    MonthStats:
+      type: object
+      properties:
+        month:
+          type: string
+        positive:
+          type: integer
+        negative:
+          type: integer
+        net:
+          type: integer
+      required:
+        - month
+        - positive
+        - negative
+        - net
+    LocationStats:
+      type: object
+      properties:
+        name:
+          type: string
+        positive:
+          type: integer
+        negative:
+          type: integer
+        net:
+          type: integer
+      required:
+        - name
+        - positive
+        - negative
+        - net
+    RecentReview:
+      type: object
+      properties:
+        rating:
+          type: integer
+          description: Star rating (1-5)
+        isoDate:
+          type: string
+          description: ISO date of the review
+        text:
+          type: string
+          description: Review text snippet
+        author:
+          type: string
+          description: Reviewer name
+      required:
+        - rating
+        - isoDate
+        - text
+        - author
+    DashboardData:
+      type: object
+      properties:
+        netScore:
+          type: integer
+          description: Net score (positive - negative)
+        positive:
+          type: integer
+          description: Total positive reviews (4-5 stars)
+        negative:
+          type: integer
+          description: Total negative reviews (1-2 stars)
+        objective:
+          type: integer
+          description: Target net score for the trimester
+        totalFetched:
+          type: integer
+          description: Total reviews fetched from provider (all time, not just Q2)
+        allTimePositive:
+          type: integer
+          description: Positive reviews (4-5★) across all fetched reviews, not just Q2
+        allTimeNegative:
+          type: integer
+          description: Negative reviews (1-2★) across all fetched reviews, not just Q2
+        allTimeTotal:
+          type: integer
+          description: Total fetched reviews counted
+        allTimeAvgRating:
+          type: number
+          description: Average star rating across all fetched reviews
+        googleTotalReviews:
+          type: integer
+          description: Total reviews on Google Maps as reported by the listing
+        googleAvgRating:
+          type: number
+          description: Average star rating as reported by Google Maps
+        trimesterName:
+          type: string
+          description: e.g. Q2 2026
+        trimesterStart:
+          type: string
+          description: ISO date string
+        trimesterEnd:
+          type: string
+          description: ISO date string
+        monthlyBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthStats"
+        locationBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocationStats"
+        recentActivity:
+          type: array
+          description: Most recent reviews from Google (not filtered to Q2)
+          items:
+            $ref: "#/components/schemas/RecentReview"
+        openTickets:
+          type: integer
+          description: Number of open high-priority Zendesk tickets
+        oldestTicketDays:
+          type: integer
+          description: Age in days of the oldest open high-priority ticket
+        updatedAt:
+          type: string
+          description: ISO timestamp of last data update
+        provider:
+          type: string
+          description: Which review API provider was used last
+        cacheHit:
+          type: boolean
+          description: Whether the response was served from cache
+      required:
+        - netScore
+        - positive
+        - negative
+        - objective
+        - totalFetched
+        - allTimePositive
+        - allTimeNegative
+        - allTimeTotal
+        - allTimeAvgRating
+        - googleTotalReviews
+        - googleAvgRating
+        - trimesterName
+        - trimesterStart
+        - trimesterEnd
+        - monthlyBreakdown
+        - locationBreakdown
+        - recentActivity
+        - openTickets
+        - oldestTicketDays
+        - updatedAt
+        - provider
+        - cacheHit
+    RefreshResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        provider:
+          type: string
+      required:
+        - success
+        - message
+        - provider

@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = [
+  "npm install -g pnpm@10",
+  "pnpm install --frozen-lockfile"
+]
+
+[phases.build]
+cmds = [
+  "BASE_PATH=/ pnpm --filter @workspace/dashboard run build",
+  "pnpm --filter @workspace/api-server run build"
+]
+
+[start]
+cmd = "NODE_ENV=production node --enable-source-maps ./artifacts/api-server/dist/index.mjs"

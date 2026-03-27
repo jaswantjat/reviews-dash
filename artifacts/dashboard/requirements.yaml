@@ -1,0 +1,12 @@
+packages:
+  "framer-motion": "For smooth layout animations, TV dashboard entrance effects, and rotating messages"
+  "date-fns": "For live clock formatting and days remaining calculations"
+  "clsx": "Utility for conditionally joining classNames"
+  "tailwind-merge": "Utility for conditionally merging Tailwind classes"
+
+images: []
+
+notes:
+  - The dashboard is optimized for a 1920x1080 full-screen TV display.
+  - Dark mode is forced by default to match professional TV dashboard aesthetics.
+  - React Query handles auto-refresh every 5 minutes (300000ms).
