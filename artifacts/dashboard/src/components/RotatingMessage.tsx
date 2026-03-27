@@ -22,7 +22,7 @@ export function RotatingMessage() {
 
   return (
     <div className="flex items-center gap-3 min-w-0 flex-1 mr-6">
-      <span className="text-blue-500 text-base flex-shrink-0">✦</span>
+      <span className="text-base flex-shrink-0" style={{ color: "#5b6cf0" }}>✦</span>
       <div className="relative h-6 flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.p
@@ -31,7 +31,8 @@ export function RotatingMessage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.35 }}
-            className="absolute inset-0 font-display font-semibold text-slate-500 text-sm leading-6 whitespace-nowrap"
+            className="absolute inset-0 font-display font-semibold text-sm leading-6 whitespace-nowrap"
+            style={{ color: "rgba(255,255,255,0.4)" }}
           >
             {MESSAGES[index]}
           </motion.p>
