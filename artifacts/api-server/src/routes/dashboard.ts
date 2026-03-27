@@ -238,7 +238,7 @@ async function buildDashboardFromDb() {
 // Historical all-time stats (pre-Q2) are always sourced from HARDCODED_DASHBOARD.
 // New trimester scores are computed live from the DB.
 // ---------------------------------------------------------------------------
-async function buildMergedDashboard() {
+export async function buildMergedDashboard() {
   const dbData = await buildDashboardFromDb();
 
   // When the DB is populated, use its all-time stats directly (they reflect all seeded reviews).

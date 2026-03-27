@@ -10,6 +10,13 @@ interface RecentReview {
   author: string;
 }
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+}
+
 function Stars({ rating }: { rating: number }) {
   return (
     <div className="flex gap-0.5">
@@ -64,7 +71,8 @@ function ReviewCard({ review, index }: { review: RecentReview; index: number }) 
   const avatarBg    = isPositive ? "#f0fdf7" : isNegative ? "#fff5f5" : "#f1f5f9";
   const avatarColor = isPositive ? "#10b981" : isNegative ? "#ef4444" : "#64748b";
 
-  const truncated = review.text.length > 160 ? review.text.slice(0, 157) + "…" : review.text;
+  const cleanText = stripHtml(review.text);
+  const truncated = cleanText.length > 160 ? cleanText.slice(0, 157) + "…" : cleanText;
 
   return (
     <motion.div
@@ -76,9 +84,10 @@ function ReviewCard({ review, index }: { review: RecentReview; index: number }) 
       className="flex gap-3 p-4 rounded-xl flex-shrink-0"
       style={{
         background: bgTint,
-        border: "1px solid #eff0f8",
-        borderLeftWidth: 3,
-        borderLeftColor: borderLeft,
+        borderTop: "1px solid #eff0f8",
+        borderRight: "1px solid #eff0f8",
+        borderBottom: "1px solid #eff0f8",
+        borderLeft: `3px solid ${borderLeft}`,
       }}
     >
       <div

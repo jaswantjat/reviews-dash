@@ -1,6 +1,8 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { countAllReviews } from "./services/reviews-db";
+import { startPolling } from "./services/poller";
+import { buildMergedDashboard } from "./routes/dashboard";
 
 const rawPort = process.env["PORT"];
 
@@ -60,4 +62,7 @@ async function runStartupTasks(port: number) {
     // Non-fatal: if seeding fails the server still works; user can seed manually.
     logger.error({ err }, "Auto-seed failed — server continues normally");
   }
+
+  // Start the background polling loop that refreshes reviews every 45 minutes.
+  startPolling(buildMergedDashboard);
 }

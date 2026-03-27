@@ -31,7 +31,7 @@ export async function fetchAndStoreNewReviews(
     for (const loc of CONFIG.locations) {
       if (!loc.placeId) continue;
 
-      const result = await fetchReviewsForLocation(loc.name, loc.placeId, maxPages);
+      const result = await fetchReviewsForLocation(loc.name, loc.placeId, maxPages, loc.googleMapsQuery ?? "");
 
       if (result.reviews.length === 0) continue;
 
