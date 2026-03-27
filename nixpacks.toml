@@ -3,8 +3,8 @@ nixPkgs = ["nodejs_22"]
 
 [phases.install]
 cmds = [
-  "corepack enable",
-  "corepack prepare pnpm@10 --activate",
+  "curl -fsSL https://get.pnpm.io/install.sh | sh -s -- --version 10.14.0",
+  "export PATH=\"$HOME/.local/share/pnpm:$PATH\"",
   "pnpm install --frozen-lockfile"
 ]
 
