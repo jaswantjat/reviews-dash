@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function LiveClock() {
   const [time, setTime] = useState(new Date());
@@ -19,12 +19,15 @@ export function LiveClock() {
   });
 
   return (
-    <div className="flex flex-col items-end gap-0.5">
-      <div className="font-display font-bold tracking-tight" style={{ fontSize: "2rem", lineHeight: 1, color: "#0f172a" }}>
+    <div className="clock-card">
+      <div className="clock-time">
         {hh}:{mm}
-        <span style={{ color: "#5b6cf0" }}>:{ss}</span>
+        <span className="clock-seconds">:{ss}</span>
       </div>
-      <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#94a3b8" }}>{dateStr}</div>
+      <div className="clock-meta">
+        <span>{dateStr}</span>
+        <span className="clock-zone">Madrid</span>
+      </div>
     </div>
   );
 }

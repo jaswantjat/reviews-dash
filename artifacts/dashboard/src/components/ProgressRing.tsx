@@ -7,10 +7,14 @@ interface ProgressRingProps {
   daysUntilStart?: number;
 }
 
-export function ProgressRing({ netScore, objective, daysUntilStart }: ProgressRingProps) {
-  const size = 248;
-  const stroke = 16;
-  const radius = (size / 2) - (stroke / 2);
+export function ProgressRing({
+  netScore,
+  objective,
+  daysUntilStart,
+}: ProgressRingProps) {
+  const size = 278;
+  const stroke = 18;
+  const radius = size / 2 - stroke / 2;
   const circumference = 2 * Math.PI * radius;
 
   const percentage = useMemo(() => {
@@ -19,38 +23,47 @@ export function ProgressRing({ netScore, objective, daysUntilStart }: ProgressRi
   }, [netScore, objective]);
 
   const offset = circumference - (percentage / 100) * circumference;
-
-  const isPositive = netScore >= 0;
   const pct = Math.round(percentage);
-
-  const gradientId = "progress-gradient";
+  const isPositive = netScore >= 0;
+  const gradientId = `progress-gradient-${isPositive ? "up" : "down"}`;
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 w-full py-3">
-      <div className="relative flex items-center justify-center">
+    <div className="progress-ring-shell">
+      <div className="progress-ring-stage">
         <svg width={size} height={size} className="-rotate-90">
           <defs>
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
               {isPositive ? (
                 <>
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="100%" stopColor="#34d399" />
+                  <stop offset="0%" stopColor="#62c5ff" />
+                  <stop offset="60%" stopColor="#4d7dff" />
+                  <stop offset="100%" stopColor="#7be7c6" />
                 </>
               ) : (
                 <>
-                  <stop offset="0%" stopColor="#ef4444" />
-                  <stop offset="100%" stopColor="#f87171" />
+                  <stop offset="0%" stopColor="#fb7185" />
+                  <stop offset="55%" stopColor="#f97316" />
+                  <stop offset="100%" stopColor="#facc15" />
                 </>
               )}
             </linearGradient>
           </defs>
+
           <circle
-            cx={size / 2} cy={size / 2} r={radius}
-            fill="none" stroke="#eef0fb" strokeWidth={stroke}
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="rgba(141, 167, 210, 0.12)"
+            strokeWidth={stroke}
           />
           <motion.circle
-            cx={size / 2} cy={size / 2} r={radius}
-            fill="none" stroke={`url(#${gradientId})`} strokeWidth={stroke}
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={`url(#${gradientId})`}
+            strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={circumference}
             initial={{ strokeDashoffset: circumference }}
@@ -59,27 +72,28 @@ export function ProgressRing({ netScore, objective, daysUntilStart }: ProgressRi
           />
         </svg>
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 pointer-events-none">
+        <div className="progress-ring-core">
+          <span className="tv-kicker">Puntuación Neta</span>
           <motion.div
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.5, type: "spring" }}
-            className="font-display font-bold"
-            style={{ fontSize: "4rem", lineHeight: 1, color: isPositive ? "#10b981" : "#ef4444" }}
+            key={netScore}
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className={`progress-ring-score ${isPositive ? "is-positive" : "is-negative"}`}
           >
-            {netScore}
+            {netScore.toLocaleString("es-ES")}
           </motion.div>
-          <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#94a3b8" }}>de {objective}</div>
-          <div className="font-display font-bold text-base mt-0.5" style={{ color: "#cbd5e1" }}>{pct}%</div>
+          <div className="progress-ring-meta">
+            <span>objetivo {objective.toLocaleString("es-ES")}</span>
+            <span>{pct}% alcanzado</span>
+          </div>
         </div>
       </div>
 
       {daysUntilStart !== undefined && daysUntilStart > 0 && (
-        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full" style={{ background: "rgba(91,108,240,0.08)", border: "1px solid rgba(91,108,240,0.2)" }}>
-          <span className="live-dot" style={{ background: "#5b6cf0", boxShadow: "0 0 0 0 rgba(91,108,240,0.4)" }} />
-          <span className="text-sm font-semibold" style={{ color: "#5b6cf0" }}>
-            Q2 comienza en <span className="font-bold">{daysUntilStart} {daysUntilStart !== 1 ? "días" : "día"}</span>
-          </span>
+        <div className="tv-pill" data-tone="neutral">
+          <span className="signal-dot" data-tone="neutral" />
+          La ventana arranca en {daysUntilStart} {daysUntilStart === 1 ? "día" : "días"}
         </div>
       )}
     </div>

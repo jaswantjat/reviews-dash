@@ -8,78 +8,83 @@ interface MonthStats {
 }
 
 export function MonthlyBars({ data }: { data: MonthStats[] }) {
-  const maxVal = Math.max(...data.map((d) => Math.max(d.positive, d.negative)), 1);
+  const maxVal = Math.max(...data.map((item) => Math.max(item.positive, item.negative)), 1);
 
   return (
-    <div className="surface-card rounded-2xl p-5 flex flex-col gap-3 h-full">
-      <div className="label mb-1">Monthly Breakdown</div>
-      <div className="flex gap-3 flex-1 items-end">
-        {data.map((item, i) => {
-          const posH = Math.round((item.positive / maxVal) * 100);
-          const negH = Math.round((item.negative / maxVal) * 100);
+    <div className="tv-panel tv-panel-soft h-full p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="tv-kicker">Pulso Mensual</div>
+          <h3 className="mt-2 text-xl font-semibold text-white">Ritmo de sentimiento</h3>
+        </div>
+        <div className="tv-pill" data-tone="neutral">
+          <span className="signal-dot" data-tone="neutral" />
+          Seguimiento trimestral
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-3 gap-4">
+        {data.map((item, index) => {
+          const posH = Math.max(10, Math.round((item.positive / maxVal) * 100));
+          const negH = Math.max(10, Math.round((item.negative / maxVal) * 100));
           const isEmpty = item.positive === 0 && item.negative === 0;
 
           return (
-            <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-              {/* Numbers */}
-              <div className="flex gap-2 text-xs font-bold font-display">
-                {!isEmpty && (
-                  <>
-                    <span style={{ color: "#10b981" }}>+{item.positive}</span>
-                    {item.negative > 0 && <span style={{ color: "#ef4444" }}>−{item.negative}</span>}
-                  </>
-                )}
-                {isEmpty && <span className="text-xs" style={{ color: "#cbd5e1" }}>—</span>}
+            <div key={item.month} className="flex min-w-0 flex-col gap-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="metric-caption text-white/70">
+                  {item.month.slice(0, 3)}
+                </span>
+                <span
+                  className={`font-mono text-sm ${
+                    item.net > 0
+                      ? "text-emerald-300"
+                      : item.net < 0
+                        ? "text-rose-300"
+                        : "text-white/45"
+                  }`}
+                >
+                  {item.net > 0 ? "+" : ""}
+                  {item.net}
+                </span>
               </div>
 
-              {/* Bars */}
-              <div className="w-full flex gap-1 items-end" style={{ height: 80 }}>
-                {/* Positive bar */}
-                <div className="flex-1 flex items-end rounded-lg overflow-hidden" style={{ height: 80, background: "#f0fdf7" }}>
+              <div className="month-bars-stage">
+                <div className="month-bar-track">
                   <motion.div
                     initial={{ height: 0 }}
-                    animate={{ height: isEmpty ? "4px" : `${Math.max(posH, 3)}%` }}
-                    transition={{ duration: 1, delay: 0.2 + i * 0.1, ease: "easeOut" }}
-                    className="w-full rounded-lg"
-                    style={{ background: "#10b981" }}
+                    animate={{ height: isEmpty ? "14%" : `${posH}%` }}
+                    transition={{ duration: 0.7, delay: index * 0.08, ease: "easeOut" }}
+                    className="month-bar month-bar-positive"
                   />
                 </div>
-                {/* Negative bar */}
-                <div className="flex-1 flex items-end rounded-lg overflow-hidden" style={{ height: 80, background: "#fff5f5" }}>
+                <div className="month-bar-track">
                   <motion.div
                     initial={{ height: 0 }}
-                    animate={{ height: isEmpty ? "4px" : `${Math.max(negH, 3)}%` }}
-                    transition={{ duration: 1, delay: 0.3 + i * 0.1, ease: "easeOut" }}
-                    className="w-full rounded-lg"
-                    style={{ background: "#ef4444" }}
+                    animate={{ height: isEmpty ? "14%" : `${negH}%` }}
+                    transition={{ duration: 0.7, delay: 0.15 + index * 0.08, ease: "easeOut" }}
+                    className="month-bar month-bar-negative"
                   />
                 </div>
               </div>
 
-              {/* Month label */}
-              <div className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: "#94a3b8" }}>
-                {item.month.slice(0, 3)}
-              </div>
-
-              {/* Net */}
-              <div className="text-sm font-display font-bold" style={{ color: item.net > 0 ? "#10b981" : item.net < 0 ? "#ef4444" : "#cbd5e1" }}>
-                {item.net > 0 ? "+" : ""}{item.net}
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="month-bar-stat">
+                  <span className="metric-caption text-white/45">Positivas</span>
+                  <span className="font-display text-2xl text-emerald-300">
+                    {item.positive}
+                  </span>
+                </div>
+                <div className="month-bar-stat">
+                  <span className="metric-caption text-white/45">Negativas</span>
+                  <span className="font-display text-2xl text-rose-300">
+                    {item.negative}
+                  </span>
+                </div>
               </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 pt-1">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "#10b981" }} />
-          <span className="text-xs" style={{ color: "#94a3b8" }}>Positive</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "#ef4444" }} />
-          <span className="text-xs" style={{ color: "#94a3b8" }}>Negative</span>
-        </div>
       </div>
     </div>
   );

@@ -1,3 +1,11 @@
+function getPositiveIntEnv(name: string, fallback: number) {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 export const CONFIG = {
   trimester: {
     name: "Q2 2026",
@@ -9,18 +17,18 @@ export const CONFIG = {
   locations: [
     {
       name: "Eltex",
-      placeId: process.env.PLACE_ID_ELTEX || "",
-      // Used by the google_maps engine to look up the real total review count
-      // and official rating, which the reviews endpoint doesn't provide.
-      googleMapsQuery: process.env.GOOGLE_MAPS_QUERY_ELTEX || "Eltex solar España",
+      // Maps search query used to find the business and fetch reviews
+      googleMapsQuery: "Eltex solar España",
     },
   ],
   providers: {
-    hasdata: { apiKey: process.env.HASDATA_API_KEY || "" },
-    scrapingdog: { apiKey: process.env.SCRAPING_DOG_API_KEY || "" },
-    searchapi: { apiKey: process.env.SEARCHAPI_KEY || "" },
+    hasdata: { apiKey: process.env.HASDATA_API_KEY || "758beeec-cae2-45b8-a41e-d7aec5769868" },
+    scrapingdog: { apiKey: process.env.SCRAPING_DOG_API_KEY || "698f2629379cb7c9af68083c" },
+    searchapi: { apiKey: process.env.SEARCHAPI_KEY || "PrJHcyjwWTiXxM9k9mPbzQZA" },
   },
   polling: {
-    reviewsIntervalMs: 45 * 60 * 1000,
+    // Real-time sync: check for new reviews every 2 minutes
+    reviewsIntervalMs: getPositiveIntEnv("REVIEWS_POLL_INTERVAL_MS", 2 * 60 * 1000),
+    streamHeartbeatMs: getPositiveIntEnv("DASHBOARD_STREAM_HEARTBEAT_MS", 15 * 1000),
   },
 };

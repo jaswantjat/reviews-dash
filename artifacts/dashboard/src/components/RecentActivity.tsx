@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -17,30 +17,13 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function Stars({ rating }: { rating: number }) {
-  return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => (
-        <span key={i} className="text-sm leading-none" style={{ color: i < rating ? "#f59e0b" : "#e2e8f0" }}>
-          ★
-        </span>
-      ))}
-    </div>
-  );
-}
+function ReviewTone({ rating }: { rating: number }) {
+  const tone = rating >= 4 ? "positive" : rating <= 2 ? "negative" : "neutral";
+  const label =
+    tone === "positive" ? "Positiva" : tone === "negative" ? "Negativa" : "Neutra";
 
-function RatingBadge({ rating }: { rating: number }) {
-  const isPositive = rating >= 4;
-  const isNegative = rating <= 2;
-  const color = isPositive ? "#10b981" : isNegative ? "#ef4444" : "#64748b";
-  const bg   = isPositive ? "#f0fdf7"  : isNegative ? "#fff5f5"  : "#f1f5f9";
-  const border = isPositive ? "#c6f0de" : isNegative ? "#fecaca" : "#e2e8f0";
-  const label = isPositive ? "Positiva" : isNegative ? "Negativa" : "Neutral";
   return (
-    <span
-      className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-      style={{ background: bg, color, border: `1px solid ${border}` }}
-    >
+    <span className="review-badge" data-tone={tone}>
       {label}
     </span>
   );
@@ -49,80 +32,68 @@ function RatingBadge({ rating }: { rating: number }) {
 function ReviewCard({ review, index }: { review: RecentReview; index: number }) {
   const relDate = (() => {
     try {
-      return formatDistanceToNow(parseISO(review.isoDate), { addSuffix: true, locale: es });
+      return formatDistanceToNow(parseISO(review.isoDate), {
+        addSuffix: true,
+        locale: es,
+      });
     } catch {
       return review.isoDate.slice(0, 10);
     }
   })();
 
-  const isPositive = review.rating >= 4;
-  const isNegative = review.rating <= 2;
-
-  const borderLeft = isPositive ? "#10b981" : isNegative ? "#ef4444" : "#cbd5e1";
-  const bgTint = isPositive ? "#f9fffe" : isNegative ? "#fff8f8" : "#fafafa";
-
+  const cleanText = stripHtml(review.text);
+  const excerpt =
+    cleanText.length > 175 ? `${cleanText.slice(0, 172).trimEnd()}…` : cleanText;
   const initials = review.author
     .split(" ")
     .slice(0, 2)
-    .map((n) => n[0] ?? "")
+    .map((part) => part[0] ?? "")
     .join("")
     .toUpperCase();
 
-  const avatarBg    = isPositive ? "#f0fdf7" : isNegative ? "#fff5f5" : "#f1f5f9";
-  const avatarColor = isPositive ? "#10b981" : isNegative ? "#ef4444" : "#64748b";
-
-  const cleanText = stripHtml(review.text);
-  const truncated = cleanText.length > 160 ? cleanText.slice(0, 157) + "…" : cleanText;
-
   return (
-    <motion.div
+    <motion.article
       layout
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
-      className="flex gap-3 p-4 rounded-xl flex-shrink-0"
-      style={{
-        background: bgTint,
-        borderTop: "1px solid #eff0f8",
-        borderRight: "1px solid #eff0f8",
-        borderBottom: "1px solid #eff0f8",
-        borderLeft: `3px solid ${borderLeft}`,
-      }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3, delay: index * 0.06, ease: "easeOut" }}
+      className="review-card"
     >
-      <div
-        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-display font-bold text-sm"
-        style={{ background: avatarBg, color: avatarColor }}
-      >
-        {initials || "?"}
-      </div>
-
-      <div className="flex flex-col gap-1 min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <span className="font-bold text-sm leading-tight" style={{ color: "#0f172a" }}>{review.author}</span>
-          <RatingBadge rating={review.rating} />
+      <div className="review-avatar">{initials || "?"}</div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-semibold text-white">
+              {review.author}
+            </div>
+            <div className="review-stars">
+              {Array.from({ length: 5 }, (_, itemIndex) => (
+                <span key={itemIndex}>{itemIndex < review.rating ? "★" : "☆"}</span>
+              ))}
+            </div>
+          </div>
+          <ReviewTone rating={review.rating} />
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <Stars rating={review.rating} />
-          <span className="text-xs" style={{ color: "#94a3b8" }}>{relDate}</span>
-        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          {excerpt || "Sin comentario escrito."}
+        </p>
 
-        {truncated ? (
-          <p className="text-sm leading-relaxed mt-0.5 italic" style={{ color: "#64748b" }}>
-            "{truncated}"
-          </p>
-        ) : (
-          <p className="text-xs italic mt-0.5" style={{ color: "#94a3b8" }}>Sin comentario escrito</p>
-        )}
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="metric-caption text-white/40">
+            {review.isoDate.slice(0, 10)}
+          </span>
+          <span className="font-mono text-xs text-white/55">{relDate}</span>
+        </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 }
 
 export function RecentActivity({ reviews }: { reviews: RecentReview[] }) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const visibleCount = 3;
+  const visibleCount = 4;
 
   useEffect(() => {
     setActiveIdx(0);
@@ -130,62 +101,68 @@ export function RecentActivity({ reviews }: { reviews: RecentReview[] }) {
 
   useEffect(() => {
     if (reviews.length <= visibleCount) return;
-    const t = setInterval(() => {
-      setActiveIdx((p) => (p + 1) % (reviews.length - visibleCount + 1));
-    }, 6000);
-    return () => clearInterval(t);
+
+    const timer = setInterval(() => {
+      setActiveIdx((current) => (current + 1) % (reviews.length - visibleCount + 1));
+    }, 7000);
+
+    return () => clearInterval(timer);
   }, [reviews.length]);
 
   const visible = reviews.slice(activeIdx, activeIdx + visibleCount);
 
-  if (reviews.length === 0) {
-    return (
-      <div className="surface-card rounded-2xl p-5 flex flex-col gap-3 h-full">
-        <div className="flex items-center justify-between">
-          <div className="label">Reseñas Recientes</div>
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ color: "#94a3b8", background: "#f1f5f9", border: "1px solid #e2e8f0" }}>En vivo</span>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
-          <div className="text-3xl opacity-40">📭</div>
-          <div className="text-sm" style={{ color: "#94a3b8" }}>Sin reseñas aún</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="surface-card rounded-2xl p-5 flex flex-col gap-3 h-full min-h-0">
-      <div className="flex items-center justify-between flex-shrink-0">
-        <div className="label">Reseñas Recientes</div>
-        <div className="flex items-center gap-1.5">
-          <span className="live-dot" />
-          <span className="text-xs font-semibold" style={{ color: "#10b981" }}>En vivo</span>
+    <div className="tv-panel flex h-full min-h-[28rem] flex-col p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="tv-kicker">Reseñas recientes</div>
+          <h3 className="mt-2 text-xl font-semibold text-white">Señal del cliente</h3>
+        </div>
+        <div className="tv-pill" data-tone="live">
+          <span className="signal-dot" data-tone="live" />
+          Flujo activo
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5 overflow-hidden flex-1">
-        <AnimatePresence mode="sync">
-          {visible.map((r, i) => (
-            <ReviewCard key={`${r.isoDate}-${r.author}-${activeIdx}`} review={r} index={i} />
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {reviews.length > visibleCount && (
-        <div className="flex gap-1.5 flex-shrink-0 justify-center pt-1">
-          {Array.from({ length: reviews.length - visibleCount + 1 }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveIdx(i)}
-              className="rounded-full transition-all"
-              style={{
-                width: i === activeIdx ? 20 : 6,
-                height: 6,
-                background: i === activeIdx ? "#5b6cf0" : "#e2e8f0",
-              }}
-            />
-          ))}
+      {reviews.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+          <div className="text-4xl text-white/25">⌁</div>
+          <p className="max-w-sm text-sm text-slate-300">
+            No hay reseñas recientes disponibles todavía para alimentar el carrusel.
+          </p>
         </div>
+      ) : (
+        <>
+          <div className="mt-5 flex flex-1 flex-col gap-3 overflow-hidden">
+            <AnimatePresence mode="sync">
+              {visible.map((review, index) => (
+                <ReviewCard
+                  key={`${review.isoDate}-${review.author}-${activeIdx}`}
+                  review={review}
+                  index={index}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {reviews.length > visibleCount && (
+            <div className="mt-4 flex justify-center gap-2">
+              {Array.from(
+                { length: reviews.length - visibleCount + 1 },
+                (_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setActiveIdx(index)}
+                    aria-label={`Mostrar grupo ${index + 1}`}
+                    className="review-carousel-dot"
+                    data-active={index === activeIdx}
+                  />
+                ),
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

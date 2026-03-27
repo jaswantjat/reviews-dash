@@ -8,8 +8,13 @@ function normalizeIsoDate(isoDate: string): string {
   return isoDate.replace(/\.\d+Z$/, "Z");
 }
 
-function makeReviewId(placeId: string, isoDate: string, author: string) {
-  return `${placeId}::${normalizeIsoDate(isoDate)}::${author}`.slice(0, 255);
+function makeReviewId(googleMapsQuery: string, isoDate: string, author: string) {
+  return `${googleMapsQuery}::${normalizeIsoDate(isoDate)}::${author}`.slice(0, 255);
+}
+
+// Generate a stable place ID from the query string for database lookups
+function getPlaceIdFromQuery(googleMapsQuery: string): string {
+  return Buffer.from(googleMapsQuery).toString('base64').slice(0, 255);
 }
 
 let fetchInFlight = false;
@@ -29,15 +34,15 @@ export async function fetchAndStoreNewReviews(
   fetchInFlight = true;
   try {
     for (const loc of CONFIG.locations) {
-      if (!loc.placeId) continue;
+      const placeId = getPlaceIdFromQuery(loc.googleMapsQuery);
 
-      const result = await fetchReviewsForLocation(loc.name, loc.placeId, maxPages, loc.googleMapsQuery ?? "");
+      const result = await fetchReviewsForLocation(loc.name, loc.googleMapsQuery, maxPages);
 
       if (result.reviews.length === 0) continue;
 
       const toInsert = result.reviews.map((r) => ({
-        id: makeReviewId(loc.placeId, r.isoDate, r.author ?? "Anonymous"),
-        placeId: loc.placeId,
+        id: makeReviewId(loc.googleMapsQuery, r.isoDate, r.author ?? "Anonymous"),
+        placeId,
         locationName: loc.name,
         rating: r.rating,
         isoDate: r.isoDate,
@@ -49,7 +54,7 @@ export async function fetchAndStoreNewReviews(
 
       if (result.placeInfo.googleTotalReviews > 0) {
         await upsertPlaceMeta(
-          loc.placeId,
+          placeId,
           loc.name,
           result.placeInfo.googleTotalReviews,
           result.placeInfo.googleAvgRating,

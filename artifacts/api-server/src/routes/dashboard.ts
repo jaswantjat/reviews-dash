@@ -1,9 +1,10 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
 import { CONFIG } from "../config.js";
 import {
   getReviewsCache,
+  isReviewCacheStale,
   setReviewsCache,
-  buildEmptyDashboard,
+  subscribeToReviewsCache,
 } from "../services/cache.js";
 import { fetchReviewsForLocation, scoreReviews, scoreAllTime } from "../services/reviews.js";
 import {
@@ -13,19 +14,20 @@ import {
   getRecentReviewsForPlace,
   getPlaceMeta,
 } from "../services/reviews-db.js";
+import { fetchAndStoreNewReviews as runProviderRefresh, isFetchInFlight } from "../services/poller.js";
+import { logger } from "../lib/logger.js";
 import type { RecentReview } from "../services/cache.js";
 
 const router: IRouter = Router();
+const HARDCODED_UPDATED_AT = "2026-03-27T08:09:02Z";
 
 // ---------------------------------------------------------------------------
 // HARDCODED DASHBOARD DATA
 // All values confirmed as of 2026-03-27 from Google Maps + stored reviews.
-// When SearchAPI credits renew and a full seed is run, the GET endpoint can
-// be switched back to buildDashboardFromDb(). Until then, these values are
-// the ground truth.
+// When live providers or a seeded DB are unavailable, this snapshot preserves
+// a usable Railway deployment without pretending the data is fresher than it is.
 // ---------------------------------------------------------------------------
 const HARDCODED_DASHBOARD = {
-  // Q2 2026 trimester (starts 2026-04-01 — no reviews in period yet)
   netScore: 0,
   positive: 0,
   negative: 0,
@@ -34,26 +36,18 @@ const HARDCODED_DASHBOARD = {
   trimesterStart: "2026-04-01",
   trimesterEnd: "2026-06-30",
   monthlyBreakdown: [
-    { month: "April",  positive: 0, negative: 0, net: 0 },
-    { month: "May",    positive: 0, negative: 0, net: 0 },
-    { month: "June",   positive: 0, negative: 0, net: 0 },
+    { month: "April", positive: 0, negative: 0, net: 0 },
+    { month: "May", positive: 0, negative: 0, net: 0 },
+    { month: "June", positive: 0, negative: 0, net: 0 },
   ],
-  locationBreakdown: [
-    { name: "Eltex", positive: 0, negative: 0, net: 0 },
-  ],
-
-  // All-time stats (based on 500 stored reviews — 419 positive, 79 negative)
+  locationBreakdown: [{ name: "Eltex", positive: 0, negative: 0, net: 0 }],
   totalFetched: 500,
   allTimePositive: 419,
   allTimeNegative: 79,
   allTimeTotal: 500,
   allTimeAvgRating: 4.4,
-
-  // Official Google Maps figures (verified 2026-03-27 via google_maps engine)
   googleTotalReviews: 897,
   googleAvgRating: 4.6,
-
-  // 8 most recent reviews — text sourced directly from Google Maps API response
   recentActivity: [
     {
       rating: 5,
@@ -104,17 +98,41 @@ const HARDCODED_DASHBOARD = {
       author: "Jorge velasco quintana",
     },
   ],
-
-  provider: "hardcoded",
+  updatedAt: HARDCODED_UPDATED_AT,
+  provider: "baseline",
 };
 
 function normalizeIsoDate(isoDate: string): string {
-  // Strip sub-second precision so HasData ("...02Z") and SearchAPI ("...02.643Z") produce the same ID
   return isoDate.replace(/\.\d+Z$/, "Z");
 }
 
-function makeReviewId(placeId: string, isoDate: string, author: string) {
-  return `${placeId}::${normalizeIsoDate(isoDate)}::${author}`.slice(0, 255);
+function makeReviewId(googleMapsQuery: string, isoDate: string, author: string) {
+  return `${googleMapsQuery}::${normalizeIsoDate(isoDate)}::${author}`.slice(0, 255);
+}
+
+// Generate a stable place ID from the query string for database lookups
+function getPlaceIdFromQuery(googleMapsQuery: string): string {
+  return Buffer.from(googleMapsQuery).toString('base64').slice(0, 255);
+}
+
+function getTimestamp(value: Date | string | null | undefined) {
+  if (!value) return 0;
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function writeSseEvent(res: Response, event: string, payload: unknown) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function triggerBackgroundRefresh(reason: string) {
+  if (isFetchInFlight()) return;
+
+  logger.info({ reason }, "Triggering background dashboard refresh");
+  void runProviderRefresh(2, buildMergedDashboard).catch((err) => {
+    logger.error({ err, reason }, "Background dashboard refresh failed");
+  });
 }
 
 async function buildDashboardFromDb() {
@@ -122,28 +140,37 @@ async function buildDashboardFromDb() {
   let totalNegative = 0;
   let totalFetched = 0;
   const monthlyTotals: Record<string, { positive: number; negative: number }> = {};
-  CONFIG.trimester.months.forEach((m) => (monthlyTotals[m] = { positive: 0, negative: 0 }));
+  CONFIG.trimester.months.forEach((month) => {
+    monthlyTotals[month] = { positive: 0, negative: 0 };
+  });
 
   let allTimePositive = 0;
   let allTimeNegative = 0;
   let allTimeTotal = 0;
-  let allTimeAvgRating = 0;
+  let allTimeRatingSum = 0;
   let googleTotalReviews = 0;
-  let googleAvgRating = 0;
+  let googleWeightedRating = 0;
+  let googleRatingWeight = 0;
+  let latestSourceUpdate = 0;
 
   const allRecentReviews: RecentReview[] = [];
-  const locationBreakdown = [];
+  const locationBreakdown: Array<{
+    name: string;
+    positive: number;
+    negative: number;
+    net: number;
+  }> = [];
 
   for (const loc of CONFIG.locations) {
-    if (!loc.placeId) continue;
+    const placeId = getPlaceIdFromQuery(loc.googleMapsQuery);
 
-    const dbReviews = await getAllReviewsForPlace(loc.placeId);
-    const recentDbReviews = await getRecentReviewsForPlace(loc.placeId, 8);
-    const meta = await getPlaceMeta(loc.placeId);
+    const dbReviews = await getAllReviewsForPlace(placeId);
+    const recentDbReviews = await getRecentReviewsForPlace(placeId, 8);
+    const meta = await getPlaceMeta(placeId);
 
-    const reviewsForScoring = dbReviews.map((r) => ({
-      rating: r.rating,
-      isoDate: r.isoDate,
+    const reviewsForScoring = dbReviews.map((review) => ({
+      rating: review.rating,
+      isoDate: review.isoDate,
     }));
 
     const scored = scoreReviews(
@@ -161,33 +188,42 @@ async function buildDashboardFromDb() {
     allTimePositive += allTime.positive;
     allTimeNegative += allTime.negative;
     allTimeTotal += allTime.total;
-    allTimeAvgRating = allTime.avgRating;
+    allTimeRatingSum += reviewsForScoring.reduce((sum, review) => sum + review.rating, 0);
 
-    // Use place_meta if available and populated (HasData provides this).
-    // Fall back to stats computed from stored reviews when the provider
-    // doesn't return place-level info (e.g. SearchAPI reviews endpoint).
-    if (meta && meta.googleTotalReviews > 0) {
-      googleTotalReviews = meta.googleTotalReviews;
-      googleAvgRating = meta.googleAvgRating / 10;
-    } else {
-      googleTotalReviews = allTime.total;
-      googleAvgRating = allTime.avgRating;
+    const placeGoogleTotal =
+      meta && meta.googleTotalReviews > 0 ? meta.googleTotalReviews : allTime.total;
+    const placeGoogleAvg =
+      meta && meta.googleTotalReviews > 0 ? meta.googleAvgRating / 10 : allTime.avgRating;
+
+    googleTotalReviews += placeGoogleTotal;
+    if (placeGoogleTotal > 0) {
+      googleWeightedRating += placeGoogleAvg * placeGoogleTotal;
+      googleRatingWeight += placeGoogleTotal;
+    } else if (placeGoogleAvg > 0) {
+      googleWeightedRating += placeGoogleAvg;
+      googleRatingWeight += 1;
     }
 
-    scored.monthlyBreakdown.forEach((mb) => {
-      if (monthlyTotals[mb.month]) {
-        monthlyTotals[mb.month].positive += mb.positive;
-        monthlyTotals[mb.month].negative += mb.negative;
+    scored.monthlyBreakdown.forEach((month) => {
+      if (monthlyTotals[month.month]) {
+        monthlyTotals[month.month].positive += month.positive;
+        monthlyTotals[month.month].negative += month.negative;
       }
     });
 
     allRecentReviews.push(
-      ...recentDbReviews.map((r) => ({
-        rating: r.rating,
-        isoDate: r.isoDate,
-        text: r.reviewText ?? "",
-        author: r.author ?? "Anonymous",
+      ...recentDbReviews.map((review) => ({
+        rating: review.rating,
+        isoDate: review.isoDate,
+        text: review.reviewText ?? "",
+        author: review.author ?? "Anonymous",
       })),
+    );
+
+    latestSourceUpdate = Math.max(
+      latestSourceUpdate,
+      getTimestamp(meta?.updatedAt),
+      getTimestamp(recentDbReviews[0]?.fetchedAt),
     );
 
     locationBreakdown.push({
@@ -202,11 +238,11 @@ async function buildDashboardFromDb() {
     .sort((a, b) => new Date(b.isoDate).getTime() - new Date(a.isoDate).getTime())
     .slice(0, 8);
 
-  const monthlyBreakdown = CONFIG.trimester.months.map((m) => ({
-    month: m,
-    positive: monthlyTotals[m].positive,
-    negative: monthlyTotals[m].negative,
-    net: monthlyTotals[m].positive - monthlyTotals[m].negative,
+  const monthlyBreakdown = CONFIG.trimester.months.map((month) => ({
+    month,
+    positive: monthlyTotals[month].positive,
+    negative: monthlyTotals[month].negative,
+    net: monthlyTotals[month].positive - monthlyTotals[month].negative,
   }));
 
   return {
@@ -218,100 +254,124 @@ async function buildDashboardFromDb() {
     allTimePositive,
     allTimeNegative,
     allTimeTotal,
-    allTimeAvgRating,
+    allTimeAvgRating: allTimeTotal > 0 ? allTimeRatingSum / allTimeTotal : 0,
     googleTotalReviews,
-    googleAvgRating,
+    googleAvgRating: googleRatingWeight > 0 ? googleWeightedRating / googleRatingWeight : 0,
     trimesterName: CONFIG.trimester.name,
     trimesterStart: CONFIG.trimester.startDate,
     trimesterEnd: CONFIG.trimester.endDate,
     monthlyBreakdown,
     locationBreakdown,
     recentActivity,
-    updatedAt: new Date().toISOString(),
+    openTickets: 0,
+    oldestTicketDays: 0,
+    updatedAt: latestSourceUpdate
+      ? new Date(latestSourceUpdate).toISOString()
+      : HARDCODED_UPDATED_AT,
     provider: "database",
   };
 }
 
-// ---------------------------------------------------------------------------
-// Build the final dashboard by merging the hardcoded historical baseline with
-// any new Q2 reviews that have been stored in the database.
-// Historical all-time stats (pre-Q2) are always sourced from HARDCODED_DASHBOARD.
-// New trimester scores are computed live from the DB.
-// ---------------------------------------------------------------------------
 export async function buildMergedDashboard() {
   const dbData = await buildDashboardFromDb();
-
-  // When the DB is populated, use its all-time stats directly (they reflect all seeded reviews).
-  // When the DB is empty (first boot, APIs down), fall back to the hardcoded baseline so
-  // the dashboard never shows zeros.
-  const dbHasData = dbData.allTimeTotal > 0;
+  const dbHasData =
+    dbData.allTimeTotal > 0 ||
+    dbData.googleTotalReviews > 0 ||
+    dbData.recentActivity.length > 0;
 
   return {
     ...HARDCODED_DASHBOARD,
-    // Q2 trimester scores from DB (0 until new reviews arrive after Apr 1)
     netScore: dbData.netScore,
     positive: dbData.positive,
     negative: dbData.negative,
     monthlyBreakdown: dbData.monthlyBreakdown,
     locationBreakdown: dbData.locationBreakdown,
-    // All-time: live DB values when seeded, hardcoded fallback when DB is empty
     allTimePositive: dbHasData ? dbData.allTimePositive : HARDCODED_DASHBOARD.allTimePositive,
     allTimeNegative: dbHasData ? dbData.allTimeNegative : HARDCODED_DASHBOARD.allTimeNegative,
     allTimeTotal: dbHasData ? dbData.allTimeTotal : HARDCODED_DASHBOARD.allTimeTotal,
-    // Google meta: live from DB if available, else hardcoded baseline
-    googleTotalReviews: dbData.googleTotalReviews > 0 ? dbData.googleTotalReviews : HARDCODED_DASHBOARD.googleTotalReviews,
-    googleAvgRating: dbData.googleAvgRating > 0 ? dbData.googleAvgRating : HARDCODED_DASHBOARD.googleAvgRating,
-    // Recent activity from DB when available
-    recentActivity: dbData.recentActivity.length > 0 ? dbData.recentActivity : HARDCODED_DASHBOARD.recentActivity,
-    updatedAt: new Date().toISOString(),
-    provider: dbHasData ? "database" : "hardcoded",
+    allTimeAvgRating: dbHasData ? dbData.allTimeAvgRating : HARDCODED_DASHBOARD.allTimeAvgRating,
+    googleTotalReviews:
+      dbData.googleTotalReviews > 0
+        ? dbData.googleTotalReviews
+        : HARDCODED_DASHBOARD.googleTotalReviews,
+    googleAvgRating:
+      dbData.googleAvgRating > 0
+        ? dbData.googleAvgRating
+        : HARDCODED_DASHBOARD.googleAvgRating,
+    recentActivity:
+      dbData.recentActivity.length > 0
+        ? dbData.recentActivity
+        : HARDCODED_DASHBOARD.recentActivity,
+    openTickets: 0,
+    oldestTicketDays: 0,
+    updatedAt: dbHasData ? dbData.updatedAt : HARDCODED_DASHBOARD.updatedAt,
+    provider: dbHasData ? "database" : HARDCODED_DASHBOARD.provider,
   };
 }
 
-async function fetchAndStoreNewReviews() {
-  for (const loc of CONFIG.locations) {
-    if (!loc.placeId) continue;
+router.get("/dashboard/stream", async (req, res) => {
+  try {
+    res.status(200);
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+    res.write("retry: 10000\n\n");
 
-    const result = await fetchReviewsForLocation(loc.name, loc.placeId, 2, loc.googleMapsQuery ?? "");
+    let snapshot = getReviewsCache();
+    if (!snapshot) {
+      const data = await buildMergedDashboard();
+      setReviewsCache(data);
+      snapshot = { ...data, cacheHit: false };
+    }
 
-    if (result.reviews.length === 0) continue;
+    writeSseEvent(res, "dashboard", snapshot);
 
-    const toInsert = result.reviews.map((r) => ({
-      id: makeReviewId(loc.placeId, r.isoDate, r.author ?? "Anonymous"),
-      placeId: loc.placeId,
-      locationName: loc.name,
-      rating: r.rating,
-      isoDate: r.isoDate,
-      reviewText: r.text ?? "",
-      author: r.author ?? "Anonymous",
-    }));
+    if (isReviewCacheStale()) {
+      triggerBackgroundRefresh("stream-connected-with-stale-cache");
+    }
 
-    await upsertReviews(toInsert);
+    const heartbeat = setInterval(() => {
+      writeSseEvent(res, "heartbeat", { ts: new Date().toISOString() });
+    }, CONFIG.polling.streamHeartbeatMs);
 
-    if (result.placeInfo.googleTotalReviews > 0) {
-      await upsertPlaceMeta(
-        loc.placeId,
-        loc.name,
-        result.placeInfo.googleTotalReviews,
-        result.placeInfo.googleAvgRating,
-        false,
-      );
+    const unsubscribe = subscribeToReviewsCache((data) => {
+      writeSseEvent(res, "dashboard", { ...data, cacheHit: false });
+    });
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+      res.end();
+    });
+  } catch (err) {
+    req.log.error({ err }, "Dashboard stream error");
+    if (!res.headersSent) {
+      res.status(500).end();
+    } else {
+      res.end();
     }
   }
-
-  const merged = await buildMergedDashboard();
-  setReviewsCache(merged);
-}
+});
 
 router.get("/dashboard", async (req, res) => {
   try {
     const cached = getReviewsCache();
     if (cached) {
+      if (isReviewCacheStale()) {
+        triggerBackgroundRefresh("dashboard-get-stale-cache");
+      }
       return res.json({ ...cached, cacheHit: true });
     }
 
     const data = await buildMergedDashboard();
     setReviewsCache(data);
+
+    if (data.provider === "baseline") {
+      triggerBackgroundRefresh("dashboard-get-cold-start");
+    }
+
     return res.json({ ...data, cacheHit: false });
   } catch (err) {
     req.log.error({ err }, "Dashboard error");
@@ -321,7 +381,7 @@ router.get("/dashboard", async (req, res) => {
 
 router.post("/dashboard/refresh", async (req, res) => {
   try {
-    await fetchAndStoreNewReviews();
+    await runProviderRefresh(2, buildMergedDashboard);
     const cached = getReviewsCache();
     return res.json({
       success: true,
@@ -343,37 +403,40 @@ router.post("/dashboard/seed", async (req, res) => {
     const results: Array<{ location: string; fetched: number; provider: string }> = [];
 
     for (const loc of CONFIG.locations) {
-      if (!loc.placeId) continue;
+      const placeId = getPlaceIdFromQuery(loc.googleMapsQuery);
 
       req.log.info({ location: loc.name }, "Seeding reviews — fetching all pages");
-      const result = await fetchReviewsForLocation(loc.name, loc.placeId, 50, loc.googleMapsQuery ?? "");
+      const result = await fetchReviewsForLocation(loc.name, loc.googleMapsQuery, 50);
 
       if (result.reviews.length === 0) {
         results.push({ location: loc.name, fetched: 0, provider: result.provider });
         continue;
       }
 
-      const toInsert = result.reviews.map((r) => ({
-        id: makeReviewId(loc.placeId, r.isoDate, r.author ?? "Anonymous"),
-        placeId: loc.placeId,
+      const toInsert = result.reviews.map((review) => ({
+        id: makeReviewId(loc.googleMapsQuery, review.isoDate, review.author ?? "Anonymous"),
+        placeId,
         locationName: loc.name,
-        rating: r.rating,
-        isoDate: r.isoDate,
-        reviewText: r.text ?? "",
-        author: r.author ?? "Anonymous",
+        rating: review.rating,
+        isoDate: review.isoDate,
+        reviewText: review.text ?? "",
+        author: review.author ?? "Anonymous",
       }));
 
       await upsertReviews(toInsert);
-
       await upsertPlaceMeta(
-        loc.placeId,
+        placeId,
         loc.name,
         result.placeInfo.googleTotalReviews,
         result.placeInfo.googleAvgRating,
         true,
       );
 
-      results.push({ location: loc.name, fetched: result.totalFetched, provider: result.provider });
+      results.push({
+        location: loc.name,
+        fetched: result.totalFetched,
+        provider: result.provider,
+      });
     }
 
     const data = await buildMergedDashboard();

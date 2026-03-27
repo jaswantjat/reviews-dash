@@ -39,25 +39,45 @@ export interface DashboardCache {
   monthlyBreakdown: MonthStats[];
   locationBreakdown: LocationStats[];
   recentActivity: RecentReview[];
+  openTickets: number;
+  oldestTicketDays: number;
   updatedAt: string;
   provider: string;
   cacheHit: boolean;
 }
 
+type DashboardSnapshot = Omit<DashboardCache, "cacheHit">;
+type DashboardListener = (data: DashboardCache) => void;
+
 let reviewsCache: DashboardCache | null = null;
 let lastReviewFetch = 0;
+const listeners = new Set<DashboardListener>();
+
+function broadcast(data: DashboardCache) {
+  for (const listener of listeners) {
+    listener(data);
+  }
+}
 
 export function getReviewsCache() {
   return reviewsCache;
 }
 
-export function setReviewsCache(data: Omit<DashboardCache, "cacheHit">) {
+export function setReviewsCache(data: DashboardSnapshot) {
   reviewsCache = { ...data, cacheHit: false };
   lastReviewFetch = Date.now();
+  broadcast(reviewsCache);
 }
 
 export function isReviewCacheStale() {
   return Date.now() - lastReviewFetch > CONFIG.polling.reviewsIntervalMs;
+}
+
+export function subscribeToReviewsCache(listener: DashboardListener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 export function buildEmptyDashboard(): DashboardCache {
@@ -89,6 +109,8 @@ export function buildEmptyDashboard(): DashboardCache {
       net: 0,
     })),
     recentActivity: [],
+    openTickets: 0,
+    oldestTicketDays: 0,
     updatedAt: new Date().toISOString(),
     provider: "none",
     cacheHit: false,

@@ -73,7 +73,7 @@ async function fetchPlaceInfoFromSearchAPI(
   }
 }
 
-async function fetchFromHasData(placeId: string, maxPages = 3): Promise<LocationResult & { name: string }> {
+async function fetchFromHasData(googleMapsQuery: string, maxPages = 3): Promise<LocationResult & { name: string }> {
   const key = CONFIG.providers.hasdata.apiKey;
   if (!key) throw Object.assign(new Error("HASDATA_API_KEY not set"), { status: 0 });
 
@@ -84,7 +84,7 @@ async function fetchFromHasData(placeId: string, maxPages = 3): Promise<Location
   let page = 0;
 
   do {
-    const params = new URLSearchParams({ placeId, sortBy: "newestFirst" });
+    const params = new URLSearchParams({ q: googleMapsQuery, sortBy: "newestFirst" });
     if (nextPageToken) params.set("nextPageToken", nextPageToken);
 
     const res = await fetch(
@@ -144,7 +144,6 @@ async function fetchFromHasData(placeId: string, maxPages = 3): Promise<Location
 }
 
 async function fetchFromSearchAPI(
-  placeId: string,
   googleMapsQuery: string,
   maxPages = 3,
 ): Promise<LocationResult & { name: string }> {
@@ -161,7 +160,7 @@ async function fetchFromSearchAPI(
   do {
     const params = new URLSearchParams({
       engine: "google_maps_reviews",
-      place_id: placeId,
+      q: googleMapsQuery,
       sort_by: "newest",
       num: "20", // max reviews per page
       api_key: key,
@@ -237,13 +236,12 @@ async function fetchFromSearchAPI(
 
 export async function fetchReviewsForLocation(
   locationName: string,
-  placeId: string,
+  googleMapsQuery: string,
   maxPages = 3,
-  googleMapsQuery = "",
 ): Promise<LocationResult> {
   const providers: Array<{ name: string; fn: () => Promise<LocationResult & { name: string }> }> = [
-    { name: "searchapi", fn: () => fetchFromSearchAPI(placeId, googleMapsQuery, maxPages) },
-    { name: "hasdata", fn: () => fetchFromHasData(placeId, maxPages) },
+    { name: "searchapi", fn: () => fetchFromSearchAPI(googleMapsQuery, maxPages) },
+    { name: "hasdata", fn: () => fetchFromHasData(googleMapsQuery, maxPages) },
   ];
 
   for (const provider of providers) {

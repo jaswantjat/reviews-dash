@@ -1,38 +1,38 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 const MESSAGES = [
-  "¡Vamos Eltex! Cada reseña nos acerca más a la meta.",
-  "Sigue empujando — 270 está al alcance.",
-  "Las 5 estrellas empiezan con una experiencia excepcional.",
-  "Cada reseña cuenta. Cada cliente importa.",
-  "El equipo es increíble — ¡a seguir así!",
-  "Pide esa reseña. Te la has ganado.",
-  "La excelencia en el servicio se refleja en cada valoración.",
-  "¡Un cliente satisfecho es la mejor publicidad!",
+  "Experiencia excepcional, reseña memorable: esa es la cadena que mueve la marca.",
+  "Cada nueva valoración alimenta el marcador en pantalla en tiempo real.",
+  "El objetivo no es solo volumen: es reputación sostenida y visible.",
+  "La confianza del cliente se construye servicio a servicio, reseña a reseña.",
+  "Cuando el equipo aprieta el ritmo, el panel tiene que sentirse vivo.",
+  "La señal correcta para el negocio no es ruido: es claridad sobre la reputación.",
 ];
 
 export function RotatingMessage() {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => setIndex((p) => (p + 1) % MESSAGES.length), 8000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => {
+      setIndex((current) => (current + 1) % MESSAGES.length);
+    }, 8000);
+
+    return () => clearInterval(timer);
   }, []);
 
   return (
-    <div className="flex items-center gap-3 min-w-0 flex-1 mr-6">
-      <span className="text-base flex-shrink-0" style={{ color: "#5b6cf0" }}>✦</span>
+    <div className="ticker-shell">
+      <span className="ticker-mark">On Air</span>
       <div className="relative h-6 flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.p
             key={index}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.35 }}
-            className="absolute inset-0 font-display font-semibold text-sm leading-6 whitespace-nowrap"
-            style={{ color: "#64748b" }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="ticker-copy"
           >
             {MESSAGES[index]}
           </motion.p>
