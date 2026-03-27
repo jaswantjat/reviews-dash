@@ -1,0 +1,7 @@
+{
+  "startupCommands": [
+    "corepack enable && corepack prepare pnpm@latest --activate; pnpm install; PORT=3000 pnpm --filter @workspace/dashboard run dev"
+  ],
+  "projectId": "4828dca9-03a8-473f-8474-ffda8e273a31",
+  "templateId": "any"
+}
