@@ -73,9 +73,12 @@ async function fetchPlaceInfoFromSearchAPI(
   }
 }
 
-async function fetchFromHasData(googleMapsQuery: string, maxPages = 3): Promise<LocationResult & { name: string }> {
+async function fetchFromHasData(_googleMapsQuery: string, maxPages = 3): Promise<LocationResult & { name: string }> {
   const key = CONFIG.providers.hasdata.apiKey;
   if (!key) throw Object.assign(new Error("HASDATA_API_KEY not set"), { status: 0 });
+
+  // HasData requires placeId or dataId — not a text query
+  const placeId = process.env.PLACE_ID_ELTEX || "ChIJhTCaeeajpBIR4O9YniCqiJ0";
 
   const allReviews: Review[] = [];
   let nextPageToken: string | undefined;
@@ -84,7 +87,7 @@ async function fetchFromHasData(googleMapsQuery: string, maxPages = 3): Promise<
   let page = 0;
 
   do {
-    const params = new URLSearchParams({ q: googleMapsQuery, sortBy: "newestFirst" });
+    const params = new URLSearchParams({ placeId, sortBy: "newestFirst" });
     if (nextPageToken) params.set("nextPageToken", nextPageToken);
 
     const res = await fetch(

@@ -22,9 +22,9 @@ export const CONFIG = {
     },
   ],
   providers: {
-    hasdata: { apiKey: process.env.HASDATA_API_KEY || "758beeec-cae2-45b8-a41e-d7aec5769868" },
+    hasdata: { apiKey: process.env.HASDATA_API_KEY || "c7d8134a-3e82-45db-b8d4-ed252eec9261" },
     scrapingdog: { apiKey: process.env.SCRAPING_DOG_API_KEY || "698f2629379cb7c9af68083c" },
-    searchapi: { apiKey: process.env.SEARCHAPI_KEY || "PrJHcyjwWTiXxM9k9mPbzQZA" },
+    searchapi: { apiKey: process.env.SEARCHAPI_KEY || "AgRaiEz8Zcg5NdZq6g6o4bJK" },
   },
   polling: {
     // Real-time sync: check for new reviews every 2 minutes

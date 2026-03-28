@@ -16,14 +16,9 @@ interface ZendeskSearchResult {
 }
 
 export async function fetchZendeskTickets(): Promise<TicketData> {
-  const subdomain = process.env.ZENDESK_SUBDOMAIN;
-  const email = process.env.ZENDESK_EMAIL;
-  const token = process.env.ZENDESK_API_TOKEN;
-
-  if (!subdomain || !email || !token) {
-    logger.warn("Zendesk env vars missing — skipping ticket fetch");
-    return { openTickets: 0, oldestTicketDays: 0 };
-  }
+  const subdomain = process.env.ZENDESK_SUBDOMAIN || "eltex";
+  const email = process.env.ZENDESK_EMAIL || "jaswant@eltex.es";
+  const token = process.env.ZENDESK_API_TOKEN || "zsBIC3JGLuqs1WxescXihWtAOcVodRCVEUzmNk0V";
 
   try {
     const query = "type:ticket status:open priority:urgent";
