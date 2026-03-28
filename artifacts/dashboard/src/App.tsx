@@ -1,5 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// ─── HTML SANITISER ────────────────────────────────────────────────────────
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // ─── TYPES ────────────────────────────────────────────────────────────────
 interface RecentReview {
   rating: number;
@@ -96,7 +111,7 @@ function toReviewCards(reviews: RecentReview[]) {
       lit: `${lit}%`,
       r: r.rating,
       t: timeAgoES(r.isoDate),
-      txt: r.text || "Cliente de Eltex Solar.",
+      txt: stripHtml(r.text) || "Cliente de Eltex Solar.",
     };
   });
 }
@@ -108,9 +123,12 @@ const API_SSE  = "/api/dashboard/stream";
 function useDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState(false);
-  const esRef = useRef<EventSource | null>(null);
+  const esRef      = useRef<EventSource | null>(null);
+  const retryRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   const connectSSE = useCallback(() => {
+    if (!mountedRef.current) return;
     if (esRef.current) {
       esRef.current.close();
       esRef.current = null;
@@ -119,6 +137,7 @@ function useDashboard() {
     esRef.current = es;
 
     es.addEventListener("dashboard", (e: MessageEvent) => {
+      if (!mountedRef.current) return;
       try {
         setData(JSON.parse(e.data));
         setError(false);
@@ -128,28 +147,36 @@ function useDashboard() {
     es.onerror = () => {
       es.close();
       esRef.current = null;
-      // Fall back to REST poll every 30 s
+      if (!mountedRef.current) return;
+      // Fall back to REST poll, then retry SSE in 30 s
       fetch(API_REST)
         .then(r => r.json())
-        .then(d => { setData(d); setError(false); })
-        .catch(() => setError(true));
-      setTimeout(connectSSE, 30000);
+        .then(d => { if (mountedRef.current) { setData(d); setError(false); } })
+        .catch(() => { if (mountedRef.current) setError(true); });
+      retryRef.current = setTimeout(connectSSE, 30000);
     };
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     // Initial REST load for fast first paint
     fetch(API_REST)
       .then(r => r.json())
-      .then(d => { setData(d); setError(false); })
-      .catch(() => setError(true));
+      .then(d => { if (mountedRef.current) { setData(d); setError(false); } })
+      .catch(() => { if (mountedRef.current) setError(true); });
 
     // Then upgrade to SSE
     connectSSE();
 
     return () => {
+      mountedRef.current = false;
       esRef.current?.close();
       esRef.current = null;
+      if (retryRef.current) {
+        clearTimeout(retryRef.current);
+        retryRef.current = null;
+      }
     };
   }, [connectSSE]);
 
@@ -189,15 +216,24 @@ function GIcon({ size = 17 }: { size?: number }) {
 // ─── HOOKS ─────────────────────────────────────────────────────────────────
 function useCountUp(target: number, ms = 1800) {
   const [v, setV] = useState(0);
+  const fromRef = useRef(0);
   useEffect(() => {
+    const from = fromRef.current;
     let start: number | null = null;
+    let raf: number;
     const tick = (ts: number) => {
       if (!start) start = ts;
       const p = Math.min((ts - start) / ms, 1);
-      setV(Math.round((1 - Math.pow(1 - p, 3)) * target));
-      if (p < 1) requestAnimationFrame(tick);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const cur = Math.round(from + eased * (target - from));
+      setV(cur);
+      if (p < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        fromRef.current = target;
+      }
     };
-    const raf = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [target, ms]);
   return v;
