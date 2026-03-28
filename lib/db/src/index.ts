@@ -5,7 +5,7 @@ import * as schema from "./schema";
 const { Pool } = pg;
 
 const SUPABASE_DB_URL =
-  process.env.DATABASE_URL ||
+  process.env.SUPABASE_DATABASE_URL ||
   "postgresql://postgres:AG16XvYgZgaNKkMS@db.nvrfoxhwfmierjmkwttt.supabase.co:5432/postgres";
 
 export const pool = new Pool({ connectionString: SUPABASE_DB_URL });
