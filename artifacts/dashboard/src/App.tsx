@@ -90,6 +90,21 @@ function daysRemaining(endDate: string): number {
   return Math.max(0, diff);
 }
 
+function daysUntilStart(startDate: string): number {
+  const start = new Date(startDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((start.getTime() - today.getTime()) / 86400000);
+  return Math.max(0, diff);
+}
+
+function formatStartDate(isoDate: string): string {
+  const ES_MONTHS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+  const d = new Date(isoDate);
+  return `${d.getDate()} ${ES_MONTHS[d.getMonth()]}`;
+}
+
 function quarterRange(start: string, end: string): string {
   const ES_MONTHS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
   const s = new Date(start);
@@ -556,15 +571,20 @@ export default function App() {
   const [revCls, setRevCls] = useState("r-in");
 
   // Derive display values
-  const GOAL     = data?.objective ?? 270;
-  const PROGRESS = data?.netScore ?? 0;
-  const RATING   = data?.googleAvgRating ?? 4.6;
-  const TOTAL    = data?.googleTotalReviews ?? 0;
-  const POSITIVE = data?.allTimePositive ?? 0;
-  const NEGATIVE = data?.allTimeNegative ?? 0;
-  const DAYS     = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
-  const PACE     = DAYS > 0 ? Math.max(0, Math.round(((GOAL - PROGRESS) / DAYS) * 10) / 10) : 0;
-  const Q        = {
+  const GOAL          = data?.objective ?? 270;
+  const PROGRESS      = data?.netScore ?? 0;
+  const RATING        = data?.googleAvgRating ?? 4.6;
+  const TOTAL         = data?.googleTotalReviews ?? 0;
+  const POSITIVE      = data?.allTimePositive ?? 0;
+  const NEGATIVE      = data?.allTimeNegative ?? 0;
+  const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
+  const PRE_Q2        = data ? new Date() < new Date(data.trimesterStart) : false;
+  const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
+  const START_LABEL   = data ? formatStartDate(data.trimesterStart) : "";
+  const PACE          = PRE_Q2
+    ? Math.round((GOAL / Math.max(DAYS, 1)) * 10) / 10
+    : DAYS > 0 ? Math.max(0, Math.round(((GOAL - PROGRESS) / DAYS) * 10) / 10) : 0;
+  const Q             = {
     label: data?.trimesterName ?? "Q2 2026",
     range: data ? quarterRange(data.trimesterStart, data.trimesterEnd) : "ABR – JUN 2026",
   };
@@ -730,13 +750,17 @@ export default function App() {
 
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 7,
-              background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "8px 14px",
+              background: PRE_Q2 ? "var(--accent-light)" : "#FFFBEB",
+              border: PRE_Q2 ? "1px solid #C7D2FE" : "1px solid #FDE68A",
+              borderRadius: 10, padding: "8px 14px",
             }}>
-              <svg width={11} height={11} viewBox="0 0 20 20" fill="#D97706">
+              <svg width={11} height={11} viewBox="0 0 20 20" fill={PRE_Q2 ? "#6366F1" : "#D97706"}>
                 <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/>
               </svg>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E" }}>
-                {DAYS} días restantes en {Q.label.split(" ")[0]}
+              <span style={{ fontSize: 12, fontWeight: 700, color: PRE_Q2 ? "var(--accent)" : "#92400E" }}>
+                {PRE_Q2
+                  ? `${DAYS_TO_START} días hasta el inicio de ${Q.label.split(" ")[0]}`
+                  : `${DAYS} días restantes en ${Q.label.split(" ")[0]}`}
               </span>
             </div>
           </div>
@@ -746,14 +770,16 @@ export default function App() {
           {/* Q2 Progress */}
           <div style={{ padding: "20px 30px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 11 }}>
-              <span className="lbl">Progreso {Q.label}</span>
+              <span className="lbl">{PRE_Q2 ? `Objetivo ${Q.label}` : `Progreso ${Q.label}`}</span>
               <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)" }}>
-                {PROGRESS} / {GOAL}
+                {PRE_Q2 ? `0 / ${GOAL}` : `${PROGRESS} / ${GOAL}`}
               </span>
             </div>
-            <ProgressBar pct={pct} height={9}/>
+            <ProgressBar pct={PRE_Q2 ? 0 : pct} height={9}/>
             <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-3)", marginTop: 10, lineHeight: 1.5 }}>
-              {remaining} reseñas positivas para el objetivo
+              {PRE_Q2
+                ? `Empieza el ${START_LABEL} · objetivo ${GOAL} reseñas positivas`
+                : `${remaining} reseñas positivas para el objetivo`}
             </div>
           </div>
 
@@ -768,25 +794,47 @@ export default function App() {
         }}>
 
           <div className="lbl" style={{ marginBottom: 22, letterSpacing: "0.18em" }}>
-            Reseñas positivas · {Q.label}
+            {PRE_Q2 ? `Cuenta atrás · ${Q.label}` : `Reseñas positivas · ${Q.label}`}
           </div>
 
           <div style={{ position: "relative", width: 360, height: 360, flexShrink: 0 }}>
-            <ArcGauge value={PROGRESS} total={GOAL} size={360}/>
+            <ArcGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} size={360}/>
 
             <div style={{
               position: "absolute", inset: 0, display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center", paddingBottom: 48, pointerEvents: "none",
             }}>
-              <div className="count-in" style={{
-                fontSize: 104, fontWeight: 900, letterSpacing: "-6px", lineHeight: 1,
-                color: "var(--text-1)", textShadow: "0 2px 24px rgba(0,0,0,0.07)",
-              }}>
-                {PROGRESS}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 8 }}>
-                de {GOAL} objetivo
-              </div>
+              {PRE_Q2 ? (
+                <>
+                  <div style={{
+                    fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase",
+                    color: "var(--accent)", marginBottom: 4,
+                  }}>
+                    EMPIEZA EL {START_LABEL}
+                  </div>
+                  <div className="count-in" style={{
+                    fontSize: 96, fontWeight: 900, letterSpacing: "-5px", lineHeight: 1,
+                    color: "var(--text-1)", textShadow: "0 2px 24px rgba(0,0,0,0.07)",
+                  }}>
+                    {DAYS_TO_START}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 6 }}>
+                    días para el inicio · objetivo {GOAL}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="count-in" style={{
+                    fontSize: 104, fontWeight: 900, letterSpacing: "-6px", lineHeight: 1,
+                    color: "var(--text-1)", textShadow: "0 2px 24px rgba(0,0,0,0.07)",
+                  }}>
+                    {PROGRESS}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 8 }}>
+                    de {GOAL} objetivo
+                  </div>
+                </>
+              )}
             </div>
 
             <div style={{
@@ -816,11 +864,13 @@ export default function App() {
           <div style={{
             marginTop: 36, marginBottom: 18,
             fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em",
-            color: remaining > 0 ? "var(--text-2)" : "var(--green-mid)",
+            color: PRE_Q2 ? "var(--accent)" : remaining > 0 ? "var(--text-2)" : "var(--green-mid)",
           }}>
-            {remaining > 0
-              ? `Faltan ${remaining} reseñas positivas para el bonus`
-              : "¡Objetivo alcanzado — bonus conseguido!"}
+            {PRE_Q2
+              ? `¡Preparad — ${Q.label} arranca el ${START_LABEL}!`
+              : remaining > 0
+                ? `Faltan ${remaining} reseñas positivas para el bonus`
+                : "¡Objetivo alcanzado — bonus conseguido!"}
           </div>
 
           <MotivLine/>
@@ -875,18 +925,20 @@ export default function App() {
       }}>
 
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
-          <span style={{ fontSize: 15, fontWeight: 900, color: "var(--accent)", letterSpacing: "-0.5px" }}>{PROGRESS}</span>
+          <span style={{ fontSize: 15, fontWeight: 900, color: "var(--accent)", letterSpacing: "-0.5px" }}>
+            {PRE_Q2 ? `↗ ${GOAL}` : PROGRESS}
+          </span>
           <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>
-            de {GOAL} reseñas · {Q.label}
+            {PRE_Q2 ? `objetivo · ${Q.label} · empieza el ${START_LABEL}` : `de ${GOAL} reseñas · ${Q.label}`}
           </span>
         </div>
 
         <div style={{ flex: 1 }}>
-          <ProgressBar pct={pct} height={7}/>
+          <ProgressBar pct={PRE_Q2 ? 0 : pct} height={7}/>
         </div>
 
         <span style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", flexShrink: 0 }}>
-          {pct}%
+          {PRE_Q2 ? "—" : `${pct}%`}
         </span>
 
         <div style={{ width: 1, height: 18, background: "var(--divider)", flexShrink: 0 }}/>

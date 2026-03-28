@@ -97,3 +97,22 @@ The app is Railway-ready:
 - Rating = 3 → skip
 - Net score = positive − negative
 - Q2 reviews are filtered by `iso_date` between `2026-04-01` and `2026-06-30`
+- Only current-trimester reviews count toward the bonus goal; historical reviews are irrelevant
+
+## Pre-Trimester State
+
+When today < `trimesterStart`, the dashboard enters "countdown mode":
+- Gauge center shows days remaining until the trimester starts
+- "EMPIEZA EL 1 ABR" label in the gauge
+- Left panel badge switches to "X días hasta el inicio de Q2"
+- Footer shows `objetivo · Q2 2026 · empieza el 1 ABR`
+- Pace calculation uses total trimester days (full 91 days for Q2)
+
+## Production Readiness Notes
+
+- `lib/db` and `lib/api-zod` must be built (`pnpm run build`) before running `tsc --noEmit` on the api-server (project references require declaration files)
+- Only two workflows are needed: `artifacts/api-server: API Server` and `artifacts/dashboard: web`
+- The "Start application" workflow was removed — it conflicted with the API server workflow on port 8080
+- SSE stream sends heartbeat every 15s; client reconnects after 30s on error
+- Background polling fetches new reviews every 45 min (configurable via `REVIEWS_POLL_INTERVAL_MS`)
+- See `CONTEXT.md` for the core product idea
