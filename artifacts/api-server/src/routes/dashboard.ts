@@ -275,6 +275,16 @@ async function buildDashboardFromDb() {
 
 export async function buildMergedDashboard() {
   const dbData = await buildDashboardFromDb();
+
+  // We trust DB all-time stats only when we have enough reviews seeded.
+  // Threshold: at least 100 reviews, OR at least 20% of the known Google total.
+  // Without this check, 8 ScrapingDog reviews would replace the 500-review baseline.
+  const googleKnown = dbData.googleTotalReviews > 0
+    ? dbData.googleTotalReviews
+    : HARDCODED_DASHBOARD.googleTotalReviews;
+  const minThreshold = Math.min(100, Math.floor(googleKnown * 0.2));
+  const dbAllTimeReliable = dbData.allTimeTotal >= minThreshold;
+
   const dbHasData =
     dbData.allTimeTotal > 0 ||
     dbData.googleTotalReviews > 0 ||
@@ -287,10 +297,11 @@ export async function buildMergedDashboard() {
     negative: dbData.negative,
     monthlyBreakdown: dbData.monthlyBreakdown,
     locationBreakdown: dbData.locationBreakdown,
-    allTimePositive: dbHasData ? dbData.allTimePositive : HARDCODED_DASHBOARD.allTimePositive,
-    allTimeNegative: dbHasData ? dbData.allTimeNegative : HARDCODED_DASHBOARD.allTimeNegative,
-    allTimeTotal: dbHasData ? dbData.allTimeTotal : HARDCODED_DASHBOARD.allTimeTotal,
-    allTimeAvgRating: dbHasData ? dbData.allTimeAvgRating : HARDCODED_DASHBOARD.allTimeAvgRating,
+    totalFetched: dbAllTimeReliable ? dbData.totalFetched : HARDCODED_DASHBOARD.totalFetched,
+    allTimePositive: dbAllTimeReliable ? dbData.allTimePositive : HARDCODED_DASHBOARD.allTimePositive,
+    allTimeNegative: dbAllTimeReliable ? dbData.allTimeNegative : HARDCODED_DASHBOARD.allTimeNegative,
+    allTimeTotal: dbAllTimeReliable ? dbData.allTimeTotal : HARDCODED_DASHBOARD.allTimeTotal,
+    allTimeAvgRating: dbAllTimeReliable ? dbData.allTimeAvgRating : HARDCODED_DASHBOARD.allTimeAvgRating,
     googleTotalReviews:
       dbData.googleTotalReviews > 0
         ? dbData.googleTotalReviews
@@ -322,9 +333,16 @@ router.get("/dashboard/stream", async (req, res) => {
 
     let snapshot = getReviewsCache();
     if (!snapshot) {
-      const data = await buildMergedDashboard();
-      setReviewsCache(data);
-      snapshot = { ...data, cacheHit: false };
+      try {
+        const data = await buildMergedDashboard();
+        setReviewsCache(data);
+        snapshot = { ...data, cacheHit: false };
+      } catch (dbErr) {
+        req.log.error({ err: dbErr }, "Dashboard stream: DB unavailable, sending baseline");
+        snapshot = { ...HARDCODED_DASHBOARD, cacheHit: false };
+        // Trigger a background refresh once DB recovers
+        triggerBackgroundRefresh("stream-db-error-fallback");
+      }
     }
 
     writeSseEvent(res, "dashboard", snapshot);

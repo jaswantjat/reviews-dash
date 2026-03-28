@@ -57,17 +57,40 @@ artifacts-monorepo/
 2. **SearchAPI** (100 calls/month) — Fallback
 3. **ScrapingDog** (one-time 1,000 credits) — Last resort
 
+## Supabase Configuration
+
+Supabase credentials are hardcoded directly in the source (user requested for testing):
+
+- **URL**: `https://nvrfoxhwfmierjmkwttt.supabase.co`
+- **Publishable key**: `sb_publishable_cdPsgk5Rtz4y98BQ0ubniQ_QywlLeMZ` (in `lib/db/src/supabase.ts`)
+- **Postgres password**: `AG16XvYgZgaNKkMS` (in `lib/db/src/index.ts` fallback URL)
+
+### DB Connection Priority (`lib/db/src/index.ts`)
+1. `SUPABASE_DATABASE_URL` env var (explicit Railway/prod override)
+2. `DATABASE_URL` env var (Replit local Postgres in dev; Railway auto-set in prod)
+3. Hardcoded Supabase Postgres URL (last-resort fallback for Railway)
+
+> In Replit dev, `DATABASE_URL` points to the local helium Postgres. The Supabase
+> direct Postgres host is blocked (port 5432 not reachable), but the REST API works.
+
 ## Environment Variables / Secrets
 
 | Key | Type | Value |
 |-----|------|-------|
-| `HASDATA_KEY` | Secret | HasData API key |
-| `SCRAPINGDOG_KEY` | Secret | ScrapingDog API key |
-| `SEARCHAPI_KEY` | Secret | SearchAPI.io key |
+| `HASDATA_API_KEY` | Secret | HasData API key (hardcoded fallback: `c7d8134a-...`) |
+| `SCRAPING_DOG_API_KEY` | Secret | ScrapingDog API key (hardcoded fallback: `69c83a...`) |
+| `SEARCHAPI_KEY` | Secret | SearchAPI.io key (hardcoded fallback: `vDXor7...`) |
 | `ZENDESK_TOKEN` | Secret | Zendesk API token |
 | `ZENDESK_SUBDOMAIN` | Env var | `eltex` |
 | `ZENDESK_EMAIL` | Env var | `jaswant@eltex.es` |
 | `PLACE_ID_ELTEX` | Env var | `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
+| `DATA_ID_ELTEX` | Env var | `0x12a4a3e6799a3085:0x9d88aa209e58efe0` |
+| `SUPABASE_DATABASE_URL` | Secret | Full Postgres URL (optional override for Railway) |
+
+### Provider Status (as of 2026-03-28)
+- **HasData**: API key returning 403 — invalid/expired, needs refresh
+- **SearchAPI**: Rate limited (429) — quota exhausted for this month
+- **ScrapingDog**: ✅ Working — fetches 8 reviews per call, single page
 
 ## Trimester Config
 
