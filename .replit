@@ -49,14 +49,10 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-ZENDESK_SUBDOMAIN = "eltex"
-ZENDESK_EMAIL = "jaswant@eltex.es"
 PLACE_ID_ELTEX = "ChIJhTCaeeajpBIR4O9YniCqiJ0"
-ZENDESK_URL = "https://eltex.zendesk.com/agent/home/tickets?brand_id=5451504521501"
 SCRAPING_DOG_API_KEY = "698f2629379cb7c9af68083c"
 HASDATA_API_KEY = "c7d8134a-3e82-45db-b8d4-ed252eec9261"
 SEARCHAPI_KEY = "AgRaiEz8Zcg5NdZq6g6o4bJK"
-ZENDESK_API_TOKEN = "zsBIC3JGLuqs1WxescXihWtAOcVodRCVEUzmNk0V"
 
 [nix]
 channel = "stable-25_05"
