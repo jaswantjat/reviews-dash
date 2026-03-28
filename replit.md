@@ -43,9 +43,19 @@ artifacts-monorepo/
 3. **Frontend**: SSE stream for real-time push + React Query polling every 30s as fallback
 
 ### Review Provider Notes
-- **HasData**: Uses `placeId` (`PLACE_ID_ELTEX` env var). 1,000 calls/month quota.
-- **SearchAPI**: Uses `place_id` with `google_maps_reviews` engine (NOT text `q` query). Key: `SEARCHAPI_KEY`.
-- **ScrapingDog**: Uses `data_id` directly on `/google_maps/reviews` endpoint (NOT the old 2-step search). Key: `SCRAPING_DOG_API_KEY`, `DATA_ID_ELTEX` = `0x12a4a3e6799a3085:0x9d88aa209e58efe0`.
+- **HasData**: Uses `placeId` (`PLACE_ID_ELTEX` env var). 1,000 calls/month quota. Currently returns 403 (invalid key).
+- **SearchAPI**: Uses `place_id` with `google_maps_reviews` engine. Key: `SEARCHAPI_KEY`. Currently returns 429 (rate limited).
+- **ScrapingDog**: ✅ WORKING. Uses `data_id` directly on `/google_maps/reviews` endpoint. Key: `SCRAPING_DOG_API_KEY`, `DATA_ID_ELTEX` = `0x12a4a3e6799a3085:0x9d88aa209e58efe0`. Supports **pagination** via `next_page_token`. Returns up to ~498 reviews (out of 896 on Google Maps).
+
+### Database State (as of 2026-03-28)
+- **Local Replit Postgres**: 498 reviews seeded. 421 positive, 74 negative, 3 neutral = 498 total ✅
+- **Supabase**: Tables NOT yet created (see supabase-setup.sql). Cannot connect from Replit (direct Postgres DNS blocked, pooler says "Tenant or user not found" — project may be paused on free tier).
+
+### Supabase Setup
+The file `supabase-setup.sql` at the repo root contains the full DDL + RLS policies to create the `reviews` and `place_meta` tables in Supabase.
+1. Go to https://supabase.com/dashboard/project/nvrfoxhwfmierjmkwttt/sql
+2. Paste and run `supabase-setup.sql`
+3. Then call `POST /api/dashboard/push-to-supabase` to replicate all 498 reviews
 
 ### API Endpoints
 - `GET /api/healthz` — Health check

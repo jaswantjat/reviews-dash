@@ -17,6 +17,7 @@ import {
 import { fetchAndStoreNewReviews as runProviderRefresh, isFetchInFlight } from "../services/poller.js";
 import { logger } from "../lib/logger.js";
 import type { RecentReview } from "../services/cache.js";
+import { pushReviewsToSupabase, pushPlaceMetaToSupabase } from "@workspace/db/supabase";
 
 const router: IRouter = Router();
 const HARDCODED_UPDATED_AT = "2026-03-27T08:09:02Z";
@@ -474,6 +475,58 @@ router.post("/dashboard/seed", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Seed failed");
+    return res.status(500).json({ success: false, message: String(err) });
+  }
+});
+
+router.post("/dashboard/push-to-supabase", async (req, res) => {
+  try {
+    const summary: Array<{ location: string; reviewsPushed: number; metaOk: boolean; errors: number; note?: string }> = [];
+
+    for (const loc of CONFIG.locations) {
+      const placeId = getPlaceIdFromQuery(loc.googleMapsQuery);
+
+      const dbRows = await getAllReviewsForPlace(placeId);
+      if (dbRows.length === 0) {
+        summary.push({ location: loc.name, reviewsPushed: 0, metaOk: false, errors: 0, note: "No reviews in local DB — run /seed first" });
+        continue;
+      }
+
+      const supabaseReviews = dbRows.map((r) => ({
+        id: r.id,
+        place_id: r.placeId,
+        location_name: r.locationName,
+        rating: r.rating,
+        iso_date: r.isoDate,
+        review_text: r.reviewText ?? "",
+        author: r.author ?? "Anonymous",
+      }));
+
+      const { inserted, errors, lastError } = await pushReviewsToSupabase(supabaseReviews);
+
+      const meta = await getPlaceMeta(placeId);
+      const metaResult = await pushPlaceMetaToSupabase({
+        place_id: placeId,
+        location_name: loc.name,
+        google_total_reviews: meta?.googleTotalReviews ?? 0,
+        google_avg_rating_x10: meta?.googleAvgRating ?? 0,
+        last_seeded_at: meta?.lastSeededAt ? meta.lastSeededAt.toISOString() : null,
+        updated_at: new Date().toISOString(),
+      });
+
+      summary.push({
+        location: loc.name,
+        reviewsPushed: inserted,
+        metaOk: metaResult.ok,
+        errors,
+        ...(lastError && { note: `Supabase error: ${lastError}` }),
+        ...(metaResult.error && { metaError: metaResult.error }),
+      });
+    }
+
+    return res.json({ success: true, summary });
+  } catch (err) {
+    req.log.error({ err }, "push-to-supabase failed");
     return res.status(500).json({ success: false, message: String(err) });
   }
 });

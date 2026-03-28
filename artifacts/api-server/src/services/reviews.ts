@@ -245,7 +245,7 @@ async function fetchFromSearchAPI(
  * text-search step which returns wrong places and fails with the field param).
  * API response shape: { locationDetails, reviews_results, pagination }
  */
-async function fetchFromScrapingDog(_googleMapsQuery: string): Promise<LocationResult & { name: string }> {
+async function fetchFromScrapingDog(_googleMapsQuery: string, maxPages = 3): Promise<LocationResult & { name: string }> {
   const key = CONFIG.providers.scrapingdog.apiKey;
   if (!key) throw Object.assign(new Error("SCRAPING_DOG_API_KEY not set"), { status: 0 });
 
@@ -253,46 +253,83 @@ async function fetchFromScrapingDog(_googleMapsQuery: string): Promise<LocationR
   // Derived from place_id ChIJhTCaeeajpBIR4O9YniCqiJ0 via SearchAPI metadata.
   const dataId = process.env.DATA_ID_ELTEX || "0x12a4a3e6799a3085:0x9d88aa209e58efe0";
 
-  const params = new URLSearchParams({
-    api_key: key,
-    data_id: dataId,
-    sort_by: "newest",
-  });
+  const BASE_URL = "https://api.scrapingdog.com/google_maps/reviews";
 
-  const res = await fetch(`https://api.scrapingdog.com/google_maps/reviews?${params}`);
-
-  if (res.status === 429 || res.status === 403) {
-    const err: ProviderError = new Error(`ScrapingDog rate limit: ${res.status}`);
-    err.status = res.status;
-    throw err;
-  }
-  if (!res.ok) throw new Error(`ScrapingDog reviews error ${res.status}`);
-
-  const data = (await res.json()) as {
-    locationDetails?: { reviews?: number; rating?: number };
-    reviews_results?: Array<{
-      rating?: number;
-      iso_date?: string;
-      date?: string;
-      snippet?: string;
-      text?: string;
-      user?: { name?: string };
-    }>;
+  type ScrapingDogReview = {
+    rating?: number;
+    iso_date?: string;
+    date?: string;
+    snippet?: string;
+    text?: string;
+    user?: { name?: string };
   };
 
-  const googleTotalReviews = data.locationDetails?.reviews ?? 0;
-  const googleAvgRating = data.locationDetails?.rating ?? 0;
+  type ScrapingDogResponse = {
+    locationDetails?: { reviews?: number; rating?: number };
+    reviews_results?: ScrapingDogReview[];
+    pagination?: { next?: string; next_page_token?: string };
+  };
 
-  const allReviews: Review[] = (data.reviews_results ?? [])
-    .filter((r) => r.rating != null && (r.iso_date || r.date))
-    .map((r) => ({
-      rating: r.rating!,
-      isoDate: r.iso_date ?? r.date ?? "",
-      text: r.snippet ?? r.text ?? "",
-      author: r.user?.name ?? "Anonymous",
-    }));
+  const allReviews: Review[] = [];
+  let googleTotalReviews = 0;
+  let googleAvgRating = 0;
+  let nextPageToken: string | undefined;
+  let page = 0;
 
-  logger.info({ fetched: allReviews.length, googleTotal: googleTotalReviews }, "ScrapingDog page fetched");
+  do {
+    const params = new URLSearchParams({
+      api_key: key,
+      data_id: dataId,
+      sort_by: "newest",
+    });
+    if (nextPageToken) params.set("next_page_token", nextPageToken);
+
+    const res = await fetch(`${BASE_URL}?${params}`);
+
+    if (res.status === 429 || res.status === 403) {
+      if (page === 0) {
+        const err: ProviderError = new Error(`ScrapingDog rate limit: ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+      logger.warn({ page, collected: allReviews.length }, "ScrapingDog rate limit mid-fetch — saving partial results");
+      break;
+    }
+    if (!res.ok) {
+      if (page === 0) throw new Error(`ScrapingDog reviews error ${res.status}`);
+      logger.warn({ page, status: res.status }, "ScrapingDog mid-fetch error — saving partial results");
+      break;
+    }
+
+    const data = (await res.json()) as ScrapingDogResponse;
+
+    if (page === 0) {
+      googleTotalReviews = data.locationDetails?.reviews ?? 0;
+      googleAvgRating = data.locationDetails?.rating ?? 0;
+    }
+
+    const pageReviews: Review[] = (data.reviews_results ?? [])
+      .filter((r) => r.rating != null && (r.iso_date || r.date))
+      .map((r) => ({
+        rating: r.rating!,
+        isoDate: r.iso_date ?? r.date ?? "",
+        text: r.snippet ?? r.text ?? "",
+        author: r.user?.name ?? "Anonymous",
+      }));
+
+    allReviews.push(...pageReviews);
+    nextPageToken = data.pagination?.next_page_token;
+    page++;
+
+    logger.info({ page, fetched: pageReviews.length, total: allReviews.length, googleTotal: googleTotalReviews }, "ScrapingDog page fetched");
+
+    if (pageReviews.length === 0) break;
+
+    // Small delay between pages to be respectful to the API
+    if (nextPageToken && page < maxPages) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  } while (nextPageToken && page < maxPages);
 
   const recentReviews: RecentReview[] = allReviews.slice(0, 8).map((r) => ({
     rating: r.rating,
@@ -321,7 +358,7 @@ export async function fetchReviewsForLocation(
   const providers: Array<{ name: string; fn: () => Promise<LocationResult & { name: string }> }> = [
     { name: "hasdata", fn: () => fetchFromHasData(googleMapsQuery, maxPages) },
     { name: "searchapi", fn: () => fetchFromSearchAPI(googleMapsQuery, maxPages) },
-    { name: "scrapingdog", fn: () => fetchFromScrapingDog(googleMapsQuery) },
+    { name: "scrapingdog", fn: () => fetchFromScrapingDog(googleMapsQuery, maxPages) },
   ];
 
   for (const provider of providers) {
