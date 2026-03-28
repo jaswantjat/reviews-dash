@@ -15,7 +15,6 @@ import {
   getPlaceMeta,
 } from "../services/reviews-db.js";
 import { fetchAndStoreNewReviews as runProviderRefresh, isFetchInFlight } from "../services/poller.js";
-import { fetchZendeskTickets } from "../services/zendesk.js";
 import { logger } from "../lib/logger.js";
 import type { RecentReview } from "../services/cache.js";
 
@@ -137,7 +136,7 @@ function triggerBackgroundRefresh(reason: string) {
 }
 
 async function buildDashboardFromDb() {
-  const zendeskData = await fetchZendeskTickets();
+  const zendeskData = { openTickets: 0, oldestTicketDays: 0 };
   let totalPositive = 0;
   let totalNegative = 0;
   let totalFetched = 0;

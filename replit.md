@@ -2,7 +2,7 @@
 
 ## Overview
 
-Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays live net score vs 270-review objective, monthly breakdown, Zendesk urgent ticket stats, live clock, and rotating motivational messages.
+Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays live net score vs 270-review objective, monthly breakdown, live clock, and rotating motivational messages. Reviews are fetched from Google Maps via a cascade of API providers.
 
 ## Stack
 
@@ -39,9 +39,13 @@ artifacts-monorepo/
 
 ### Data Flow
 1. **Reviews**: Backend polls HasData → SearchAPI → ScrapingDog (cascade) every 45 min
-2. **Tickets**: Backend polls Zendesk Search API every 5 min
-3. **Cache**: In-memory cache, serves stale data if all providers fail
-4. **Frontend**: Polls `/api/dashboard` every 5 min, renders TV-optimized display
+2. **Cache**: In-memory cache with SSE push — browser clients get live updates instantly when new data arrives
+3. **Frontend**: SSE stream for real-time push + React Query polling every 30s as fallback
+
+### Review Provider Notes
+- **HasData**: Uses `placeId` (`PLACE_ID_ELTEX` env var). 1,000 calls/month quota.
+- **SearchAPI**: Uses `place_id` with `google_maps_reviews` engine (NOT text `q` query). Key: `SEARCHAPI_KEY`.
+- **ScrapingDog**: Uses `data_id` directly on `/google_maps/reviews` endpoint (NOT the old 2-step search). Key: `SCRAPING_DOG_API_KEY`, `DATA_ID_ELTEX` = `0x12a4a3e6799a3085:0x9d88aa209e58efe0`.
 
 ### API Endpoints
 - `GET /api/healthz` — Health check

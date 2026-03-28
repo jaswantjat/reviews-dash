@@ -153,6 +153,9 @@ async function fetchFromSearchAPI(
   const key = CONFIG.providers.searchapi.apiKey;
   if (!key) throw Object.assign(new Error("SEARCHAPI_KEY not set"), { status: 0 });
 
+  // The google_maps_reviews engine requires place_id, not a text query.
+  const placeId = process.env.PLACE_ID_ELTEX || "ChIJhTCaeeajpBIR4O9YniCqiJ0";
+
   // Fetch the real total & rating in parallel with the first page of reviews.
   const placeInfoPromise = fetchPlaceInfoFromSearchAPI(googleMapsQuery, key);
 
@@ -163,7 +166,7 @@ async function fetchFromSearchAPI(
   do {
     const params = new URLSearchParams({
       engine: "google_maps_reviews",
-      q: googleMapsQuery,
+      place_id: placeId,
       sort_by: "newest",
       num: "20", // max reviews per page
       api_key: key,
@@ -238,82 +241,58 @@ async function fetchFromSearchAPI(
 }
 
 /**
- * ScrapingDog uses a two-step process:
- * 1. Search for the place via google_maps to get the data_id and reviews_link.
- * 2. Fetch reviews from the reviews_link.
+ * ScrapingDog: fetch reviews directly via data_id (avoids the unreliable
+ * text-search step which returns wrong places and fails with the field param).
+ * API response shape: { locationDetails, reviews_results, pagination }
  */
-async function fetchFromScrapingDog(googleMapsQuery: string): Promise<LocationResult & { name: string }> {
+async function fetchFromScrapingDog(_googleMapsQuery: string): Promise<LocationResult & { name: string }> {
   const key = CONFIG.providers.scrapingdog.apiKey;
   if (!key) throw Object.assign(new Error("SCRAPING_DOG_API_KEY not set"), { status: 0 });
 
-  // Step 1: resolve data_id from query
-  const searchParams = new URLSearchParams({
+  // The data_id is the hex representation of the Google Maps place.
+  // Derived from place_id ChIJhTCaeeajpBIR4O9YniCqiJ0 via SearchAPI metadata.
+  const dataId = process.env.DATA_ID_ELTEX || "0x12a4a3e6799a3085:0x9d88aa209e58efe0";
+
+  const params = new URLSearchParams({
     api_key: key,
-    field: "reviews",
-    q: googleMapsQuery,
+    data_id: dataId,
+    sort_by: "newest",
   });
 
-  const searchRes = await fetch(`https://api.scrapingdog.com/google_maps?${searchParams}`);
-  if (searchRes.status === 429 || searchRes.status === 403) {
-    const err: ProviderError = new Error(`ScrapingDog rate limit: ${searchRes.status}`);
-    err.status = searchRes.status;
+  const res = await fetch(`https://api.scrapingdog.com/google_maps/reviews?${params}`);
+
+  if (res.status === 429 || res.status === 403) {
+    const err: ProviderError = new Error(`ScrapingDog rate limit: ${res.status}`);
+    err.status = res.status;
     throw err;
   }
-  if (!searchRes.ok) throw new Error(`ScrapingDog search error ${searchRes.status}`);
+  if (!res.ok) throw new Error(`ScrapingDog reviews error ${res.status}`);
 
-  const searchData = (await searchRes.json()) as {
-    search_results?: Array<{
-      place_id?: string;
-      data_id?: string;
-      reviews_link?: string;
-    }>;
-  };
-
-  const match = searchData.search_results?.find(
-    (r) => r.place_id === (process.env.PLACE_ID_ELTEX || "ChIJhTCaeeajpBIR4O9YniCqiJ0"),
-  ) ?? searchData.search_results?.[0];
-
-  if (!match?.reviews_link) {
-    throw new Error("ScrapingDog: no reviews_link in search results");
-  }
-
-  // Step 2: fetch reviews using the reviews_link (already has api_key embedded)
-  const reviewsUrl = `${match.reviews_link}&sort_by=newest`;
-  const reviewsRes = await fetch(reviewsUrl);
-
-  if (reviewsRes.status === 429 || reviewsRes.status === 403) {
-    const err: ProviderError = new Error(`ScrapingDog reviews rate limit: ${reviewsRes.status}`);
-    err.status = reviewsRes.status;
-    throw err;
-  }
-  if (!reviewsRes.ok) throw new Error(`ScrapingDog reviews error ${reviewsRes.status}`);
-
-  const data = (await reviewsRes.json()) as {
-    place_info?: { total_reviews?: number; avg_rating?: number };
-    reviews?: Array<{
+  const data = (await res.json()) as {
+    locationDetails?: { reviews?: number; rating?: number };
+    reviews_results?: Array<{
       rating?: number;
       iso_date?: string;
       date?: string;
-      text?: string;
       snippet?: string;
+      text?: string;
       user?: { name?: string };
-      author_name?: string;
     }>;
   };
 
-  const googleTotalReviews = data.place_info?.total_reviews ?? 0;
-  const googleAvgRating = data.place_info?.avg_rating ?? 0;
+  const googleTotalReviews = data.locationDetails?.reviews ?? 0;
+  const googleAvgRating = data.locationDetails?.rating ?? 0;
 
-  const allReviews: Review[] = (data.reviews ?? [])
+  const allReviews: Review[] = (data.reviews_results ?? [])
     .filter((r) => r.rating != null && (r.iso_date || r.date))
     .map((r) => ({
       rating: r.rating!,
       isoDate: r.iso_date ?? r.date ?? "",
-      text: r.text ?? r.snippet ?? "",
-      author: r.user?.name ?? r.author_name ?? "Anonymous",
+      text: r.snippet ?? r.text ?? "",
+      author: r.user?.name ?? "Anonymous",
     }));
 
-  logger.info({ fetched: allReviews.length }, "ScrapingDog page fetched");
+  logger.info({ fetched: allReviews.length, googleTotal: googleTotalReviews }, "ScrapingDog page fetched");
 
   const recentReviews: RecentReview[] = allReviews.slice(0, 8).map((r) => ({
     rating: r.rating,
