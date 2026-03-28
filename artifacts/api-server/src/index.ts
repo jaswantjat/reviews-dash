@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { countAllReviews } from "./services/reviews-db";
-import { startPolling } from "./services/poller";
+import { startPolling, startKeepAlive } from "./services/poller";
 import { buildMergedDashboard } from "./routes/dashboard";
 
 const rawPort = process.env["PORT"];
@@ -65,4 +65,7 @@ async function runStartupTasks(port: number) {
 
   // Start the background polling loop that refreshes reviews every 45 minutes.
   startPolling(buildMergedDashboard);
+
+  // Keep Supabase free-tier alive — pings the DB every 12 hours.
+  startKeepAlive();
 }

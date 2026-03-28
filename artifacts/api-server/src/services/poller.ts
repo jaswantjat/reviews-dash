@@ -3,6 +3,7 @@ import { logger } from "../lib/logger.js";
 import { fetchReviewsForLocation } from "./reviews.js";
 import { upsertReviews, upsertPlaceMeta } from "./reviews-db.js";
 import { setReviewsCache } from "./cache.js";
+import { pool } from "@workspace/db";
 
 function normalizeIsoDate(isoDate: string): string {
   return isoDate.replace(/\.\d+Z$/, "Z");
@@ -85,4 +86,25 @@ export function startPolling(
       logger.error({ err }, "Background poll failed");
     }
   }, intervalMs);
+}
+
+// Ping the database every 12 hours to prevent Supabase free-tier deactivation
+// (Supabase pauses projects after 1 week of inactivity)
+const KEEP_ALIVE_INTERVAL_MS = 12 * 60 * 60 * 1000;
+
+export function startKeepAlive(): void {
+  logger.info({ intervalMs: KEEP_ALIVE_INTERVAL_MS }, "Supabase keep-alive started");
+
+  const ping = async () => {
+    try {
+      await pool.query("SELECT 1");
+      logger.info("Supabase keep-alive ping: ok");
+    } catch (err) {
+      logger.warn({ err }, "Supabase keep-alive ping failed");
+    }
+  };
+
+  // Run once immediately on startup, then on schedule
+  ping();
+  setInterval(ping, KEEP_ALIVE_INTERVAL_MS);
 }
