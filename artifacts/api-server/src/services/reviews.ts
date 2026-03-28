@@ -234,14 +234,112 @@ async function fetchFromSearchAPI(
   };
 }
 
+/**
+ * ScrapingDog uses a two-step process:
+ * 1. Search for the place via google_maps to get the data_id and reviews_link.
+ * 2. Fetch reviews from the reviews_link.
+ */
+async function fetchFromScrapingDog(googleMapsQuery: string): Promise<LocationResult & { name: string }> {
+  const key = CONFIG.providers.scrapingdog.apiKey;
+  if (!key) throw Object.assign(new Error("SCRAPING_DOG_API_KEY not set"), { status: 0 });
+
+  // Step 1: resolve data_id from query
+  const searchParams = new URLSearchParams({
+    api_key: key,
+    field: "reviews",
+    q: googleMapsQuery,
+  });
+
+  const searchRes = await fetch(`https://api.scrapingdog.com/google_maps?${searchParams}`);
+  if (searchRes.status === 429 || searchRes.status === 403) {
+    const err: ProviderError = new Error(`ScrapingDog rate limit: ${searchRes.status}`);
+    err.status = searchRes.status;
+    throw err;
+  }
+  if (!searchRes.ok) throw new Error(`ScrapingDog search error ${searchRes.status}`);
+
+  const searchData = (await searchRes.json()) as {
+    search_results?: Array<{
+      place_id?: string;
+      data_id?: string;
+      reviews_link?: string;
+    }>;
+  };
+
+  const match = searchData.search_results?.find(
+    (r) => r.place_id === (process.env.PLACE_ID_ELTEX || "ChIJhTCaeeajpBIR4O9YniCqiJ0"),
+  ) ?? searchData.search_results?.[0];
+
+  if (!match?.reviews_link) {
+    throw new Error("ScrapingDog: no reviews_link in search results");
+  }
+
+  // Step 2: fetch reviews using the reviews_link (already has api_key embedded)
+  const reviewsUrl = `${match.reviews_link}&sort_by=newest`;
+  const reviewsRes = await fetch(reviewsUrl);
+
+  if (reviewsRes.status === 429 || reviewsRes.status === 403) {
+    const err: ProviderError = new Error(`ScrapingDog reviews rate limit: ${reviewsRes.status}`);
+    err.status = reviewsRes.status;
+    throw err;
+  }
+  if (!reviewsRes.ok) throw new Error(`ScrapingDog reviews error ${reviewsRes.status}`);
+
+  const data = (await reviewsRes.json()) as {
+    place_info?: { total_reviews?: number; avg_rating?: number };
+    reviews?: Array<{
+      rating?: number;
+      iso_date?: string;
+      date?: string;
+      text?: string;
+      snippet?: string;
+      user?: { name?: string };
+      author_name?: string;
+    }>;
+  };
+
+  const googleTotalReviews = data.place_info?.total_reviews ?? 0;
+  const googleAvgRating = data.place_info?.avg_rating ?? 0;
+
+  const allReviews: Review[] = (data.reviews ?? [])
+    .filter((r) => r.rating != null && (r.iso_date || r.date))
+    .map((r) => ({
+      rating: r.rating!,
+      isoDate: r.iso_date ?? r.date ?? "",
+      text: r.text ?? r.snippet ?? "",
+      author: r.user?.name ?? r.author_name ?? "Anonymous",
+    }));
+
+  logger.info({ fetched: allReviews.length }, "ScrapingDog page fetched");
+
+  const recentReviews: RecentReview[] = allReviews.slice(0, 8).map((r) => ({
+    rating: r.rating,
+    isoDate: r.isoDate,
+    text: r.text ?? "",
+    author: r.author ?? "Anonymous",
+  }));
+
+  return {
+    name: "",
+    reviews: allReviews,
+    recentReviews,
+    totalFetched: allReviews.length,
+    placeInfo: { googleTotalReviews, googleAvgRating },
+    provider: "scrapingdog",
+  };
+}
+
 export async function fetchReviewsForLocation(
   locationName: string,
   googleMapsQuery: string,
   maxPages = 3,
 ): Promise<LocationResult> {
+  // HasData has the most quota (1,000/month), SearchAPI is limited (100/month),
+  // ScrapingDog is the last resort (one-time 1,000 credits).
   const providers: Array<{ name: string; fn: () => Promise<LocationResult & { name: string }> }> = [
-    { name: "searchapi", fn: () => fetchFromSearchAPI(googleMapsQuery, maxPages) },
     { name: "hasdata", fn: () => fetchFromHasData(googleMapsQuery, maxPages) },
+    { name: "searchapi", fn: () => fetchFromSearchAPI(googleMapsQuery, maxPages) },
+    { name: "scrapingdog", fn: () => fetchFromScrapingDog(googleMapsQuery) },
   ];
 
   for (const provider of providers) {

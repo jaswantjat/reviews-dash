@@ -15,6 +15,7 @@ import {
   getPlaceMeta,
 } from "../services/reviews-db.js";
 import { fetchAndStoreNewReviews as runProviderRefresh, isFetchInFlight } from "../services/poller.js";
+import { fetchZendeskTickets } from "../services/zendesk.js";
 import { logger } from "../lib/logger.js";
 import type { RecentReview } from "../services/cache.js";
 
@@ -136,6 +137,7 @@ function triggerBackgroundRefresh(reason: string) {
 }
 
 async function buildDashboardFromDb() {
+  const zendeskData = await fetchZendeskTickets();
   let totalPositive = 0;
   let totalNegative = 0;
   let totalFetched = 0;
@@ -254,17 +256,17 @@ async function buildDashboardFromDb() {
     allTimePositive,
     allTimeNegative,
     allTimeTotal,
-    allTimeAvgRating: allTimeTotal > 0 ? allTimeRatingSum / allTimeTotal : 0,
+    allTimeAvgRating: allTimeTotal > 0 ? Math.round((allTimeRatingSum / allTimeTotal) * 10) / 10 : 0,
     googleTotalReviews,
-    googleAvgRating: googleRatingWeight > 0 ? googleWeightedRating / googleRatingWeight : 0,
+    googleAvgRating: googleRatingWeight > 0 ? Math.round((googleWeightedRating / googleRatingWeight) * 10) / 10 : 0,
     trimesterName: CONFIG.trimester.name,
     trimesterStart: CONFIG.trimester.startDate,
     trimesterEnd: CONFIG.trimester.endDate,
     monthlyBreakdown,
     locationBreakdown,
     recentActivity,
-    openTickets: 0,
-    oldestTicketDays: 0,
+    openTickets: zendeskData.openTickets,
+    oldestTicketDays: zendeskData.oldestTicketDays,
     updatedAt: latestSourceUpdate
       ? new Date(latestSourceUpdate).toISOString()
       : HARDCODED_UPDATED_AT,
@@ -302,8 +304,8 @@ export async function buildMergedDashboard() {
       dbData.recentActivity.length > 0
         ? dbData.recentActivity
         : HARDCODED_DASHBOARD.recentActivity,
-    openTickets: 0,
-    oldestTicketDays: 0,
+    openTickets: dbData.openTickets,
+    oldestTicketDays: dbData.oldestTicketDays,
     updatedAt: dbHasData ? dbData.updatedAt : HARDCODED_DASHBOARD.updatedAt,
     provider: dbHasData ? "database" : HARDCODED_DASHBOARD.provider,
   };
