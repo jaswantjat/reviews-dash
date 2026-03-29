@@ -101,6 +101,8 @@ const HARDCODED_DASHBOARD = {
   ],
   updatedAt: HARDCODED_UPDATED_AT,
   provider: "baseline",
+  openTickets: 0,
+  oldestTicketDays: 0,
 };
 
 function normalizeIsoDate(isoDate: string): string {
