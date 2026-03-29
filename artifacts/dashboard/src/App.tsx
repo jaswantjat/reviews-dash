@@ -586,9 +586,14 @@ export default function App() {
   const PRE_Q2        = data ? new Date() < new Date(data.trimesterStart) : false;
   const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
   const START_LABEL   = data ? formatStartDate(data.trimesterStart) : "";
-  const PACE          = PRE_Q2
-    ? Math.round((GOAL / Math.max(DAYS, 1)) * 10) / 10
-    : DAYS > 0 ? Math.max(0, Math.round(((GOAL - PROGRESS) / DAYS) * 10) / 10) : 0;
+  // Pace in reviews per WEEK (weekly targets are more actionable for a team)
+  // When pre-Q2: base on full Q2 duration (DAYS minus days until start)
+  // When in-Q2:  base on remaining days in the quarter
+  const Q2_TOTAL_WEEKS  = Math.max(Math.ceil((DAYS - DAYS_TO_START) / 7), 1);
+  const WEEKS_LEFT      = Math.max(Math.ceil(DAYS / 7), 1);
+  const PACE            = PRE_Q2
+    ? Math.round(GOAL / Q2_TOTAL_WEEKS)
+    : DAYS > 0 ? Math.max(0, Math.round((GOAL - PROGRESS) / WEEKS_LEFT)) : 0;
   const Q             = {
     label: data?.trimesterName ?? "Q2 2026",
     range: data ? quarterRange(data.trimesterStart, data.trimesterEnd) : "ABR – JUN 2026",
@@ -743,7 +748,7 @@ export default function App() {
               </span>
               <div style={{ paddingBottom: 5 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-2)", lineHeight: 1.3 }}>reseñas</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-2)", lineHeight: 1.3 }}>por día</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-2)", lineHeight: 1.3 }}>por semana</div>
               </div>
             </div>
 
