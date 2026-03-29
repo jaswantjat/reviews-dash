@@ -522,7 +522,12 @@ function ReviewCard({ review, cls }: { review: ReviewItem; cls: string }) {
         color: `hsl(${review.hue}, ${review.sat}, 92%)`,
         marginBottom: 12, marginLeft: -4, userSelect: "none", height: 40, overflow: "hidden",
       }}>"</div>
-      <p style={{ margin: "0 0 28px", fontSize: 16.5, fontWeight: 400, lineHeight: 1.8, color: "var(--text-1)", letterSpacing: "-0.01em" }}>
+      <p style={{
+        margin: "0 0 28px", fontSize: 16.5, fontWeight: 400, lineHeight: 1.8,
+        color: "var(--text-1)", letterSpacing: "-0.01em",
+        display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 6,
+        overflow: "hidden",
+      }}>
         {review.txt}
       </p>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -644,7 +649,7 @@ export default function App() {
         setRevIdx(i => (i + 1) % reviewList.length);
         setRevCls("r-in");
       }, 350);
-    }, 6000);
+    }, 14000);
     return () => clearInterval(id);
   }, [reviewList.length]);
 
@@ -770,7 +775,10 @@ export default function App() {
 
           {/* Pace */}
           <div style={{ padding: "22px 28px" }}>
-            <div className="lbl" style={{ marginBottom: 14 }}>Ritmo necesario</div>
+            <div className="lbl" style={{ marginBottom: 2 }}>Ritmo necesario</div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-3)", marginBottom: 14, lineHeight: 1.4 }}>
+              para alcanzar el objetivo del trimestre
+            </div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 10, marginBottom: 14 }}>
               <span style={{ fontSize: 54, fontWeight: 900, letterSpacing: "-2.5px", lineHeight: 1, color: "var(--text-1)" }}>
                 {PACE}
@@ -826,8 +834,19 @@ export default function App() {
           overflow: "hidden", gap: 0,
         }}>
 
-          <div className="lbl" style={{ marginBottom: 22, letterSpacing: "0.18em" }}>
-            {PRE_Q2 ? `Cuenta atrás · ${Q.label}` : `Reseñas positivas · ${Q.label}`}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
+            <div className="lbl" style={{ letterSpacing: "0.18em" }}>
+              {PRE_Q2 ? `Cuenta atrás · ${Q.label}` : `Reseñas positivas · ${Q.label}`}
+            </div>
+            {PRE_Q2 && (
+              <div style={{
+                fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase",
+                background: "#EEF2FF", color: "#4F46E5", border: "1px solid #C7D2FE",
+                borderRadius: 100, padding: "3px 10px", flexShrink: 0,
+              }}>
+                No iniciado
+              </div>
+            )}
           </div>
 
           <div style={{ position: "relative", width: 360, height: 360, flexShrink: 0 }}>
@@ -853,6 +872,14 @@ export default function App() {
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 6 }}>
                     días para el inicio · objetivo {GOAL}
+                  </div>
+                  <div style={{
+                    marginTop: 10,
+                    fontSize: 11, fontWeight: 600, color: "#818CF8",
+                    background: "#EEF2FF", borderRadius: 8, padding: "5px 12px",
+                    border: "1px dashed #C7D2FE",
+                  }}>
+                    El marcador se activará el {START_LABEL}
                   </div>
                 </>
               ) : (
