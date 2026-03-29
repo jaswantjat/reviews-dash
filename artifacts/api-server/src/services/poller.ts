@@ -3,7 +3,7 @@ import { logger } from "../lib/logger.js";
 import { fetchReviewsForLocation } from "./reviews.js";
 import { upsertReviews, upsertPlaceMeta } from "./reviews-db.js";
 import { setReviewsCache } from "./cache.js";
-import { pool } from "@workspace/db";
+import { supabaseAdmin } from "@workspace/db/supabase";
 
 function normalizeIsoDate(isoDate: string): string {
   return isoDate.replace(/\.\d+Z$/, "Z");
@@ -97,7 +97,11 @@ export function startKeepAlive(): void {
 
   const ping = async () => {
     try {
-      await pool.query("SELECT 1");
+      const { error } = await supabaseAdmin
+        .from("place_meta")
+        .select("place_id")
+        .limit(1);
+      if (error) throw new Error(error.message);
       logger.info("Supabase keep-alive ping: ok");
     } catch (err) {
       logger.warn({ err }, "Supabase keep-alive ping failed");
