@@ -201,7 +201,7 @@ const SP = "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.
 
 function Star({ s = 16, on = true }: { s?: number; on?: boolean }) {
   return (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill={on ? "#F59E0B" : "#E2E8F0"} style={{ flexShrink: 0 }}>
+    <svg width={s} height={s} viewBox="0 0 20 20" fill={on ? "#F59E0B" : "rgba(255,255,255,0.10)"} style={{ flexShrink: 0 }}>
       <path d={SP}/>
     </svg>
   );
@@ -226,7 +226,7 @@ function StarFill({ s = 16, fill = 1, uid }: { s?: number; fill?: number; uid: s
           <rect x="0" y="0" width={20 * fill} height="20"/>
         </clipPath>
       </defs>
-      <path d={SP} fill="#E2E8F0"/>
+      <path d={SP} fill="rgba(255,255,255,0.10)"/>
       <path d={SP} fill="#F59E0B" clipPath={`url(#${clipId})`}/>
     </svg>
   );
@@ -424,8 +424,8 @@ function ArcGauge({ value, total, size = 360 }: { value: number; total: number; 
           <stop offset="100%" stopColor="#818CF8"/>
         </linearGradient>
         <linearGradient id="arcTrack" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stopColor="#DDDDE8"/>
-          <stop offset="100%" stopColor="#E8E8EE"/>
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.10)"/>
+          <stop offset="100%" stopColor="rgba(255,255,255,0.06)"/>
         </linearGradient>
         <filter id="tipGlow" x="-80%" y="-80%" width="260%" height="260%">
           <feGaussianBlur stdDeviation="5" result="blur"/>
