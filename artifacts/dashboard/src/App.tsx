@@ -457,7 +457,7 @@ function ArcGauge({ value, total, size = 360 }: { value: number; total: number; 
         />
       </>}
 
-      <circle cx={sx} cy={sy} r={SW / 2} fill={fillD ? "#4338CA" : "#CACAD4"}/>
+      <circle cx={sx} cy={sy} r={SW / 2} fill={fillD ? "#4338CA" : "rgba(129,140,248,0.25)"}/>
 
       {pct > 0.002 && <>
         <circle ref={haloRef} cx={tipX0} cy={tipY0} r={SW / 2 + 7}
@@ -513,9 +513,9 @@ function ReviewCard({ review, cls }: { review: ReviewItem; cls: string }) {
   const avatarShadow = `hsl(${review.hue}, ${review.sat}, ${review.lit}, 0.35)`;
   return (
     <div className={cls} style={{
-      background: "var(--white)", borderRadius: 22,
-      border: "1px solid var(--divider)", padding: "32px 34px 30px",
-      boxShadow: "0 2px 4px rgba(0,0,0,0.03), 0 8px 32px rgba(0,0,0,0.06)",
+      background: "var(--card)", borderRadius: 20,
+      border: "1px solid rgba(255,255,255,0.09)", padding: "28px 30px 26px",
+      boxShadow: "0 4px 6px rgba(0,0,0,0.15), 0 12px 40px rgba(0,0,0,0.25)",
     }}>
       <div style={{
         fontFamily: "Georgia, serif", fontSize: 72, lineHeight: 0.75,
@@ -565,10 +565,10 @@ function StatChip({ label, value, bg, border, labelColor, valColor, subtext, sub
   labelColor: string; valColor: string; subtext: string; subtextColor: string;
 }) {
   return (
-    <div style={{ flex: 1, padding: "18px 20px", background: bg, borderRadius: 18, border: `1px solid ${border}` }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: labelColor, marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1, color: valColor }}>{value}</div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: subtextColor, marginTop: 7 }}>{subtext}</div>
+    <div style={{ flex: 1, padding: "13px 16px", background: bg, borderRadius: 16, border: `1px solid ${border}` }}>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: labelColor, marginBottom: 7 }}>{label}</div>
+      <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1, color: valColor }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: subtextColor, marginTop: 5 }}>{subtext}</div>
     </div>
   );
 }
@@ -723,8 +723,8 @@ export default function App() {
         }}>
 
           {/* Google Rating hero */}
-          <div style={{ padding: "28px 30px 24px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+          <div style={{ padding: "18px 26px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <GIcon size={15}/>
               <span className="lbl">Google Maps</span>
               <span style={{
@@ -735,18 +735,18 @@ export default function App() {
             </div>
 
             <div style={{
-              fontSize: 84, fontWeight: 900, letterSpacing: "-4px", lineHeight: 1, color: "var(--text-1)",
+              fontSize: 68, fontWeight: 900, letterSpacing: "-3px", lineHeight: 1, color: "var(--text-1)",
               textShadow: "0 0 36px rgba(245,158,11,0.14), 0 2px 8px rgba(0,0,0,0.06)",
             }}>
               {RATING}
             </div>
 
-            <div style={{ margin: "10px 0 10px" }}>
-              <RatingStars rating={RATING} s={20} gap={4}/>
+            <div style={{ margin: "8px 0 8px" }}>
+              <RatingStars rating={RATING} s={18} gap={3}/>
             </div>
 
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-1px", color: "var(--text-1)" }}>
+              <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.5px", color: "var(--text-1)" }}>
                 {cntTotal.toLocaleString()}
               </span>
               <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>reseñas totales</span>
@@ -756,8 +756,8 @@ export default function App() {
           <div className="rule"/>
 
           {/* Distribution */}
-          <div style={{ padding: "22px 28px" }}>
-            <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ padding: "12px 24px" }}>
+            <div style={{ display: "flex", gap: 8 }}>
               <StatChip label="Positivas" value={cntPos.toLocaleString()}
                 bg="var(--green-bg)" border="var(--green-border)"
                 labelColor="var(--green-mid)" valColor="var(--green)"
@@ -774,18 +774,18 @@ export default function App() {
           <div className="rule"/>
 
           {/* Pace */}
-          <div style={{ padding: "22px 28px" }}>
+          <div style={{ padding: "12px 24px" }}>
             <div className="lbl" style={{ marginBottom: 2 }}>Ritmo necesario</div>
-            <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-3)", marginBottom: 14, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-3)", marginBottom: 10, lineHeight: 1.4 }}>
               para alcanzar el objetivo del trimestre
             </div>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 10, marginBottom: 14 }}>
-              <span style={{ fontSize: 54, fontWeight: 900, letterSpacing: "-2.5px", lineHeight: 1, color: "var(--text-1)" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 44, fontWeight: 900, letterSpacing: "-2px", lineHeight: 1, color: "var(--text-1)" }}>
                 {PACE}
               </span>
-              <div style={{ paddingBottom: 5 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-2)", lineHeight: 1.3 }}>reseñas</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-2)", lineHeight: 1.3 }}>por semana</div>
+              <div style={{ paddingBottom: 3 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)", lineHeight: 1.3 }}>reseñas</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)", lineHeight: 1.3 }}>por semana</div>
               </div>
             </div>
 
@@ -809,7 +809,7 @@ export default function App() {
           <div className="rule"/>
 
           {/* Q2 Progress */}
-          <div style={{ padding: "22px 28px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={{ padding: "12px 24px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <span className="lbl">{PRE_Q2 ? `Objetivo ${Q.label}` : `Progreso ${Q.label}`}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
@@ -817,9 +817,9 @@ export default function App() {
               </span>
             </div>
             <ProgressBar pct={PRE_Q2 ? 0 : pct} height={9}/>
-            <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)", marginTop: 11, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-3)", marginTop: 8, lineHeight: 1.4 }}>
               {PRE_Q2
-                ? `Empieza el ${START_LABEL} · objetivo ${GOAL} reseñas positivas`
+                ? `Empieza el ${START_LABEL} · objetivo ${GOAL} reseñas`
                 : `${remaining} reseñas positivas para el objetivo`}
             </div>
           </div>
@@ -834,7 +834,7 @@ export default function App() {
           overflow: "hidden", gap: 0,
         }}>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <div className="lbl" style={{ letterSpacing: "0.18em" }}>
               {PRE_Q2 ? `Cuenta atrás · ${Q.label}` : `Reseñas positivas · ${Q.label}`}
             </div>
@@ -900,7 +900,7 @@ export default function App() {
           </div>
 
           <div style={{
-            marginTop: 36, marginBottom: 18,
+            marginTop: 20, marginBottom: 14,
             fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em",
             color: PRE_Q2 ? "var(--accent)" : remaining > 0 ? "var(--text-2)" : "var(--green-mid)",
           }}>
