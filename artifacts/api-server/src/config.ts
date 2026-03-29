@@ -25,6 +25,7 @@ export const CONFIG = {
     hasdata: { apiKey: process.env.HASDATA_API_KEY || "c7d8134a-3e82-45db-b8d4-ed252eec9261" },
     scrapingdog: { apiKey: process.env.SCRAPING_DOG_API_KEY || "69c93a0dc12e078c544a57d8" },
     searchapi: { apiKey: process.env.SEARCHAPI_KEY || "2BcSHdpwMRps8xR611yFUaPW" },
+    apify: { apiKey: process.env.APIFY_API_KEY || "apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7" },
   },
   polling: {
     // Poll external APIs every 45 minutes to stay within API quotas.

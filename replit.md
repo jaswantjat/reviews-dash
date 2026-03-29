@@ -44,7 +44,7 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 ## Architecture
 
 ### Data Flow
-1. **Poll**: Backend polls HasData → SearchAPI → ScrapingDog (cascade) every 45 min
+1. **Poll**: Backend polls HasData → SearchAPI → Apify → ScrapingDog (cascade) every 45 min
 2. **Store**: New reviews upserted into Supabase (`reviews` table), place info into `place_meta`
 3. **Serve**: SSE stream pushes live data to browser clients; REST fallback polls every 30 s
 4. **Fallback**: If all providers fail, cached DB data is served. If DB is empty, hardcoded baseline snapshot is used.
@@ -117,13 +117,14 @@ Breakdown:
 
 ## Provider Cascade
 
-| Provider | Quota | Key env var | Place identifier |
-|----------|-------|-------------|-----------------|
-| HasData | 1,000 calls/month | `HASDATA_API_KEY` | `PLACE_ID_ELTEX` = `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
-| SearchAPI | 100 calls/month | `SEARCHAPI_KEY` | same place_id |
-| ScrapingDog | One-time credits | `SCRAPING_DOG_API_KEY` | `DATA_ID_ELTEX` = `0x12a4a3e6799a3085:0x9d88aa209e58efe0` |
+| Priority | Provider | Quota | Key env var | Place identifier |
+|----------|----------|-------|-------------|-----------------|
+| 1 | HasData | 1,000 calls/month | `HASDATA_API_KEY` | `PLACE_ID_ELTEX` = `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
+| 2 | SearchAPI | 100 calls/month | `SEARCHAPI_KEY` | same place_id |
+| 3 | Apify | Pay-per-use (`compass/Google-Maps-Reviews-Scraper`) | `APIFY_API_KEY` | place_id URL format |
+| 4 | ScrapingDog | One-time credits | `SCRAPING_DOG_API_KEY` | `DATA_ID_ELTEX` = `0x12a4a3e6799a3085:0x9d88aa209e58efe0` |
 
-**Status as of 2026-03-29**: HasData is rate-limited (old key). SearchAPI (new key) and ScrapingDog (new key) are active and working.
+**Status as of 2026-03-29**: HasData is rate-limited (old key). SearchAPI, Apify, and ScrapingDog are active and working.
 
 ## Environment Variables
 
@@ -133,6 +134,7 @@ Breakdown:
 | `HASDATA_API_KEY` | Hardcoded fallback in config.ts | `c7d8134a-3e82-45db-b8d4-ed252eec9261` |
 | `SCRAPING_DOG_API_KEY` | Replit env var + hardcoded fallback in config.ts | `69c93a0dc12e078c544a57d8` |
 | `SEARCHAPI_KEY` | Replit env var + hardcoded fallback in config.ts | `2BcSHdpwMRps8xR611yFUaPW` |
+| `APIFY_API_KEY` | Replit env var (shared) + hardcoded fallback in config.ts | `apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7` |
 | `PLACE_ID_ELTEX` | Hardcoded fallback in services/reviews.ts | `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
 | `DATA_ID_ELTEX` | Hardcoded fallback in services/reviews.ts | `0x12a4a3e6799a3085:0x9d88aa209e58efe0` |
 

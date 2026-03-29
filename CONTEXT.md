@@ -21,8 +21,8 @@ If the team reaches that number by the end of the trimester, every manager earns
 
 We only use **Google Maps reviews**. No other platforms (Trustpilot, Facebook, etc.).
 
-The three scraping providers — HasData, SearchAPI, ScrapingDog — all pull from Google Maps.
-They run in cascade: HasData → SearchAPI → ScrapingDog. If all fail, cached data is served.
+The four scraping providers — HasData, SearchAPI, Apify, ScrapingDog — all pull from Google Maps.
+They run in cascade: HasData → SearchAPI → Apify → ScrapingDog. If all fail, cached data is served.
 
 ## Real-time vs. historical data
 

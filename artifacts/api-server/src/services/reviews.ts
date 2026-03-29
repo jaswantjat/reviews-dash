@@ -241,6 +241,99 @@ async function fetchFromSearchAPI(
 }
 
 /**
+ * Apify: runs the compass/Google-Maps-Reviews-Scraper actor synchronously.
+ * Uses the place_id URL format so the actor targets the exact listing.
+ * Response is a flat array of review objects from the actor dataset.
+ */
+async function fetchFromApify(_googleMapsQuery: string, maxReviews = 100): Promise<LocationResult & { name: string }> {
+  const key = CONFIG.providers.apify.apiKey;
+  if (!key) throw Object.assign(new Error("APIFY_API_KEY not set"), { status: 0 });
+
+  const placeId = process.env.PLACE_ID_ELTEX || "ChIJhTCaeeajpBIR4O9YniCqiJ0";
+  const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+
+  type ApifyReviewItem = {
+    reviewId?: string;
+    reviewer?: { name?: string };
+    stars?: number;
+    publishedAtDate?: string;
+    text?: string;
+    totalScore?: number;
+    reviewsCount?: number;
+  };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5-min timeout
+
+  let items: ApifyReviewItem[] = [];
+
+  try {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/compass~Google-Maps-Reviews-Scraper/run-sync-get-dataset-items?token=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startUrls: [{ url: mapsUrl }],
+          maxReviews,
+          reviewsSort: "newest",
+          language: "en",
+          reviewsOrigin: "all",
+          personalData: true,
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    if (res.status === 429 || res.status === 402) {
+      const err: ProviderError = new Error(`Apify quota exceeded: ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    if (!res.ok) throw new Error(`Apify error ${res.status}: ${await res.text().catch(() => "")}`);
+
+    items = (await res.json()) as ApifyReviewItem[];
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const allReviews: Review[] = items
+    .filter((item) => item.stars != null && item.publishedAtDate)
+    .map((item) => ({
+      rating: item.stars!,
+      isoDate: item.publishedAtDate!,
+      text: item.text ?? "",
+      author: item.reviewer?.name ?? "Anonymous",
+    }));
+
+  // totalScore and reviewsCount are the same on every item — grab from first
+  const first = items[0];
+  const googleTotalReviews = first?.reviewsCount ?? 0;
+  const googleAvgRating = first?.totalScore ?? 0;
+
+  const recentReviews: RecentReview[] = allReviews.slice(0, 8).map((r) => ({
+    rating: r.rating,
+    isoDate: r.isoDate,
+    text: r.text ?? "",
+    author: r.author ?? "Anonymous",
+  }));
+
+  logger.info(
+    { fetched: allReviews.length, googleTotal: googleTotalReviews, googleAvg: googleAvgRating },
+    "Apify reviews fetched",
+  );
+
+  return {
+    name: "",
+    reviews: allReviews,
+    recentReviews,
+    totalFetched: allReviews.length,
+    placeInfo: { googleTotalReviews, googleAvgRating },
+    provider: "apify",
+  };
+}
+
+/**
  * ScrapingDog: fetch reviews directly via data_id (avoids the unreliable
  * text-search step which returns wrong places and fails with the field param).
  * API response shape: { locationDetails, reviews_results, pagination }
@@ -353,11 +446,15 @@ export async function fetchReviewsForLocation(
   googleMapsQuery: string,
   maxPages = 3,
 ): Promise<LocationResult> {
-  // HasData has the most quota (1,000/month), SearchAPI is limited (100/month),
-  // ScrapingDog is the last resort (one-time 1,000 credits).
+  // Provider priority:
+  // 1. HasData     — 1,000 calls/month, highest quota, try first
+  // 2. SearchAPI   — 100 calls/month, limited
+  // 3. Apify       — pay-per-use (compass/Google-Maps-Reviews-Scraper), reliable fallback
+  // 4. ScrapingDog — one-time credits, last resort
   const providers: Array<{ name: string; fn: () => Promise<LocationResult & { name: string }> }> = [
     { name: "hasdata", fn: () => fetchFromHasData(googleMapsQuery, maxPages) },
     { name: "searchapi", fn: () => fetchFromSearchAPI(googleMapsQuery, maxPages) },
+    { name: "apify", fn: () => fetchFromApify(googleMapsQuery, maxPages * 33) }, // maxPages*33 ≈ reviews count
     { name: "scrapingdog", fn: () => fetchFromScrapingDog(googleMapsQuery, maxPages) },
   ];
 
