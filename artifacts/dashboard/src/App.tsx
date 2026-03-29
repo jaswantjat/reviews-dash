@@ -201,7 +201,7 @@ const SP = "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.
 
 function Star({ s = 16, on = true }: { s?: number; on?: boolean }) {
   return (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill={on ? "#F59E0B" : "rgba(255,255,255,0.10)"} style={{ flexShrink: 0 }}>
+    <svg width={s} height={s} viewBox="0 0 20 20" fill={on ? "#F59E0B" : "rgba(0,0,0,0.10)"} style={{ flexShrink: 0 }}>
       <path d={SP}/>
     </svg>
   );
@@ -226,7 +226,7 @@ function StarFill({ s = 16, fill = 1, uid }: { s?: number; fill?: number; uid: s
           <rect x="0" y="0" width={20 * fill} height="20"/>
         </clipPath>
       </defs>
-      <path d={SP} fill="rgba(255,255,255,0.10)"/>
+      <path d={SP} fill="rgba(0,0,0,0.10)"/>
       <path d={SP} fill="#F59E0B" clipPath={`url(#${clipId})`}/>
     </svg>
   );
@@ -424,8 +424,8 @@ function ArcGauge({ value, total, size = 360 }: { value: number; total: number; 
           <stop offset="100%" stopColor="#818CF8"/>
         </linearGradient>
         <linearGradient id="arcTrack" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.10)"/>
-          <stop offset="100%" stopColor="rgba(255,255,255,0.06)"/>
+          <stop offset="0%"   stopColor="rgba(0,0,0,0.08)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0.05)"/>
         </linearGradient>
         <filter id="tipGlow" x="-80%" y="-80%" width="260%" height="260%">
           <feGaussianBlur stdDeviation="5" result="blur"/>
@@ -438,11 +438,11 @@ function ArcGauge({ value, total, size = 360 }: { value: number; total: number; 
       </defs>
 
       <path d={trackD} fill="none" stroke="url(#arcTrack)" strokeWidth={SW} strokeLinecap="round"/>
-      <path d={trackD} fill="none" stroke="rgba(180,180,210,0.22)" strokeWidth={SW - 10} strokeLinecap="round"/>
+      <path d={trackD} fill="none" stroke="rgba(100,120,180,0.12)" strokeWidth={SW - 10} strokeLinecap="round"/>
 
       {milestones.map(({ inner, outer }, i) => (
         <line key={i} x1={inner[0]} y1={inner[1]} x2={outer[0]} y2={outer[1]}
-          stroke="rgba(255,255,255,0.9)" strokeWidth={2} strokeLinecap="round"/>
+          stroke="rgba(255,255,255,0.95)" strokeWidth={2.5} strokeLinecap="round"/>
       ))}
 
       {fillD && <>
@@ -514,12 +514,12 @@ function ReviewCard({ review, cls }: { review: ReviewItem; cls: string }) {
   return (
     <div className={cls} style={{
       background: "var(--card)", borderRadius: 20,
-      border: "1px solid rgba(255,255,255,0.09)", padding: "28px 30px 26px",
-      boxShadow: "0 4px 6px rgba(0,0,0,0.15), 0 12px 40px rgba(0,0,0,0.25)",
+      border: "1px solid var(--divider)", padding: "28px 30px 26px",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08)",
     }}>
       <div style={{
         fontFamily: "Georgia, serif", fontSize: 72, lineHeight: 0.75,
-        color: `hsl(${review.hue}, ${review.sat}, 92%)`,
+        color: `hsl(${review.hue}, 40%, 84%)`,
         marginBottom: 12, marginLeft: -4, userSelect: "none", height: 40, overflow: "hidden",
       }}>"</div>
       <p style={{
@@ -876,8 +876,8 @@ export default function App() {
                   <div style={{
                     marginTop: 10,
                     fontSize: 11, fontWeight: 600, color: "var(--accent)",
-                    background: "var(--accent-pale)", borderRadius: 8, padding: "5px 12px",
-                    border: "1px dashed rgba(129,140,248,0.3)",
+                    background: "var(--accent-light)", borderRadius: 8, padding: "5px 12px",
+                    border: "1px dashed rgba(67,56,202,0.28)",
                   }}>
                     El marcador se activará el {START_LABEL}
                   </div>
