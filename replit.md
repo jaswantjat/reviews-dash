@@ -60,7 +60,29 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 - **Service role key**: in `lib/db/src/supabase.ts`
 - **PAT**: stored as `SUPABASE_PAT` env var
 - **Tables**: `reviews` (**975 rows** stored as of 2026-03-29) + `place_meta` (1 row: 897 Google-reported total / 4.6 avg)
-- **Important**: We store **975 unique reviews** in Supabase. The dashboard "reseñas totales" counter shows `googleTotalReviews` (897) from `place_meta` — the number Google officially reports. The positive/negative chip counts below it come from `allTimePositive`/`allTimeNegative` which are scored from stored DB rows. Google's 897 is also the source-of-truth for the average rating.
+
+### Numbers — First-Principles Breakdown (verified 2026-03-29)
+
+| Source | Count |
+|--------|-------|
+| Reviews stored in Supabase | 975 |
+| → 4–5★ positive | 862 |
+| → 1–2★ negative | 108 |
+| → 3★ neutral | 5 |
+| Google Maps official total | **897** |
+| Discrepancy (DB − Google) | 78 |
+
+**Why 975 stored vs 897 on Google?** Google may have removed ~78 reviews since scraping, or different provider counting windows differ slightly. Google's 897 is the authoritative public-facing number.
+
+**Dashboard display logic (App.tsx):**
+- `reseñas totales` = `googleTotalReviews` = **897** (from `place_meta`)
+- `Positivas` = `round(897 × 862 / (862+108))` = `round(897 × 862 / 970)` = **797**
+- `Negativas` = `897 − 797` = **100**
+- **Check: 797 + 100 = 897 ✓** (neutral reviews ~0.5% are absorbed into the proportional rounding)
+- Ratio preserved: raw 7.98:1 → scaled 7.97:1 (essentially identical)
+
+The proportional scaling uses only the positive-to-negative ratio from the stored data (ignoring the 5 neutral reviews), then forces them to sum exactly to 897. This is mathematically accurate and matches what a user would expect to see.
+
 - **RLS**: enabled, anon key has full read/write access (non-sensitive data)
 - **Setup SQL**: `supabase-setup.sql` (already applied)
 
