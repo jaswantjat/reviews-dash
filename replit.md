@@ -1,5 +1,14 @@
 # Eltex Reviews Dashboard
 
+---
+
+> **AGENT SELF-REMINDER — READ BEFORE EVERY SESSION**
+> Always update this file when you make architectural changes, fix bugs, change behaviour, or add features.
+> Keep the "Recent changes" section current. Keep numbers, dates, and states accurate.
+> This file is your memory. If it's stale, your context is stale.
+
+---
+
 ## Overview
 
 Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays live net score vs 270-review objective, monthly breakdown, live clock, and rotating motivational messages. Reviews are fetched from Google Maps via a cascade of scraping API providers and stored in Supabase.
@@ -157,6 +166,30 @@ When today < `trimesterStart`, the dashboard shows a countdown:
 ## Keep-alive
 
 A background job pings Supabase every 12 hours to prevent the free-tier project from pausing due to inactivity.
+
+## Recent Changes
+
+### 2026-03-29 — UX review + bug fixes
+
+**UI improvements (customer support feedback):**
+- Review carousel slowed from 6 s → 14 s per card so agents can read comfortably
+- Review text clamped to 6 lines (`-webkit-line-clamp: 6`) to prevent layout breaks on long reviews; HTML in raw review text is stripped client-side via `stripHtml()` in `App.tsx`
+- "Ritmo necesario" now has a subtext: "para alcanzar el objetivo del trimestre"
+- Pre-trimester gauge state ("NO INICIADO") is now unambiguous:
+  - Badge next to gauge label
+  - Dashed note inside gauge: "El marcador se activará el 1 ABR"
+- Both positive and negative reviews rotate in the carousel (no filtering — `recentActivity` from the API includes all ratings)
+
+**TypeScript / build fixes:**
+- `lib/db` package had a **stale build** — `dist/supabase.d.ts` was missing `supabaseAdmin`, `pushReviewsToSupabase`, `pushPlaceMetaToSupabase`. Fixed by running `pnpm run build` in `lib/db`. **Always rebuild `lib/db` after touching `lib/db/src/supabase.ts`.**
+- `HARDCODED_DASHBOARD` fallback was missing `openTickets: 0` and `oldestTicketDays: 0` required by `DashboardCache` type
+- After rebuild: `npx tsc --noEmit` passes cleanly for both dashboard and api-server (EXIT:0)
+
+**Testing passed (2026-03-29 session):**
+- TypeScript: 0 errors in dashboard, 0 errors in api-server
+- API: `/api/dashboard` → 200, `/api/dashboard/stream` → SSE emitting
+- Data integrity: 13/13 checks pass (netScore, ratings, trimester dates, recentActivity, provider=database, openTickets present, updatedAt fresh)
+- Browser console: no errors
 
 ## UI/UX Skills
 
