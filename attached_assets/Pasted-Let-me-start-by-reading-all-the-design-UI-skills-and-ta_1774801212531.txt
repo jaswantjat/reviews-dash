@@ -1,0 +1,49 @@
+Let me start by reading all the design/UI skills and taking a screenshot of the current dashboard in parallel.
+
+Loaded design skill
+Loaded ui-styling skill
+Loaded ui-ux-pro-max skill
+Loaded brand skill
+Now let me read the full ui-ux-pro-max skill and the design-system skill, and also read the current App.tsx to understand the current code structure. I also got the screenshot showing the current state.
+
+Looking at the screenshot, I can see:
+
+Left panel: Rating (4.6), stars, total reviews (837), positive/negative cards, Ritmo necesario, Objetivo Q2 progress bar
+Center: Large countdown gauge showing "3 dias" until Q2, with "EMPIEZA EL 1 ABR" and a motivational quote
+Right: Review carousel
+The current design issues I can identify:
+
+The center is mostly empty/white - the gauge is there but the whitespace around it feels very bare and unintentional
+
+The review carousel on the right - only one card is visible while the rest are indicated as small dots
+
+Color palette - the light gray and white background feels bland for a TV dashboard
+
+Typography - could use more visual impact for a large display
+
+Overall feel - it's functional but lacks the visual punch needed to motivate a support team on a TV screen
+
+For a TV dashboard in an office setting, I should lean into dark backgrounds to reduce glare and create more drama, plus maximize contrast and visual hierarchy to make information pop from across the room.
+
+Now I'm looking at the current structure to understand what needs changing. The design is clean but too light-themed and minimal for this use case—there's wasted center space, the review carousel takes up too much real estate, and the countdown gauge alone doesn't fill the void. I need to shift to a dark theme with bigger, bolder numbers and vibrant accent colors to make this feel premium and motivational.
+
+Good context. Now let me read the current dashboard code in full to understand what I'm working with:
+
+Loaded design-system skill
+Loaded ui-ux-pro-max skill
+Let me read the rest of App.tsx and the CSS:
+
+Now let me read the index.css to understand the current design tokens:
+
+Now I have everything I need. Let me do a comprehensive analysis and then implement the redesign. This is a TV dashboard for a customer support team — based on all the design skills:
+
+Priority: dark mode for TV/office display, high contrast, readable from distance, energetic and motivational
+Style: Data visualization dashboard with dark base, glassmorphism panels, vibrant accent colors
+Issues: Light theme is wrong for TV, center has wasted space, review card blends into background, gauge track invisible on pre-Q2
+I'll rewrite the CSS design tokens and update targeted hardcoded colors in App.tsx simultaneously:
+
+Now I'll systematically update all the hardcoded colors in App.tsx to match the dark theme:
+
+Now update the ArcGauge SVG track colors, milestone lines, and empty dot:
+
+You've reached your daily free quota limit. It will reset at 12:00 AM UTC.
