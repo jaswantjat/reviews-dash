@@ -59,7 +59,8 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 - **Publishable key**: `sb_publishable_cdPsgk5Rtz4y98BQ0ubniQ_QywlLeMZ`
 - **Service role key**: in `lib/db/src/supabase.ts`
 - **PAT**: stored as `SUPABASE_PAT` env var
-- **Tables**: `reviews` (498 rows) + `place_meta` (1 row: 897 total / 4.6 avg)
+- **Tables**: `reviews` (520 rows stored) + `place_meta` (1 row: **897 total on Google** / 4.6 avg)
+- **Important**: Google reports **897 total reviews** (800-something, shown on dashboard as "reseñas totales"). We have 520 stored in Supabase — not all 897. The positive/negative counts reflect only the 520 stored rows. The 897 Google total is the authoritative displayed figure.
 - **RLS**: enabled, anon key has full read/write access (non-sensitive data)
 - **Setup SQL**: `supabase-setup.sql` (already applied)
 
