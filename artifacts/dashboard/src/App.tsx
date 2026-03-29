@@ -207,10 +207,39 @@ function Star({ s = 16, on = true }: { s?: number; on?: boolean }) {
   );
 }
 
+// Whole-number stars used in review cards (n is always 1-5)
 function Stars({ n, s = 16, gap = 3 }: { n: number; s?: number; gap?: number }) {
   return (
     <span style={{ display: "inline-flex", gap, alignItems: "center" }}>
       {[1,2,3,4,5].map(i => <Star key={i} s={s} on={i <= n}/>)}
+    </span>
+  );
+}
+
+// Fractional star — renders exactly `fill` (0–1) of the star filled in amber
+function StarFill({ s = 16, fill = 1, uid }: { s?: number; fill?: number; uid: string }) {
+  const clipId = `clip-${uid}`;
+  return (
+    <svg width={s} height={s} viewBox="0 0 20 20" style={{ flexShrink: 0, overflow: "visible" }}>
+      <defs>
+        <clipPath id={clipId}>
+          <rect x="0" y="0" width={20 * fill} height="20"/>
+        </clipPath>
+      </defs>
+      <path d={SP} fill="#E2E8F0"/>
+      <path d={SP} fill="#F59E0B" clipPath={`url(#${clipId})`}/>
+    </svg>
+  );
+}
+
+// Fractional rating stars — accurately represents e.g. 4.6 as 4 full + 0.6 partial star
+function RatingStars({ rating, s = 16, gap = 3 }: { rating: number; s?: number; gap?: number }) {
+  return (
+    <span style={{ display: "inline-flex", gap, alignItems: "center" }}>
+      {[1,2,3,4,5].map(i => {
+        const fill = Math.min(1, Math.max(0, rating - (i - 1)));
+        return <StarFill key={i} s={s} fill={fill} uid={`rating-${Math.round(rating * 10)}-${i}`}/>;
+      })}
     </span>
   );
 }
@@ -708,7 +737,7 @@ export default function App() {
             </div>
 
             <div style={{ margin: "10px 0 10px" }}>
-              <Stars n={Math.round(RATING)} s={20} gap={4}/>
+              <RatingStars rating={RATING} s={20} gap={4}/>
             </div>
 
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>

@@ -35,7 +35,7 @@ They run in cascade: HasData → SearchAPI → ScrapingDog. If all fail, cached 
 ### Historical (numbers only — no full scrape needed)
 
 - For **all-time stats** (total review count, avg rating), we use the aggregate numbers Google returns directly — **we do not need to store every individual historical review**.
-- The 498 reviews currently in the DB (covering Nov 2021 → Mar 2026) are sufficient for computing historical positive/negative context. There is no requirement to fetch all 897 Google reviews individually.
+- The reviews currently in the DB (covering Nov 2021 → Mar 2026) are sufficient for computing historical positive/negative context. There is no requirement to fetch all Google reviews individually.
 - The `place_meta` table stores the live Google aggregate: 897 total, 4.6 avg rating. This is updated on every scraping poll.
 
 ## Data map
@@ -46,7 +46,28 @@ They run in cascade: HasData → SearchAPI → ScrapingDog. If all fail, cached 
 | Recent reviews carousel | Live scrape (newest 8) | Every 45 min |
 | Google total review count (897) | Live place info from scraper | Every 45 min |
 | Google avg rating (4.6) | Live place info from scraper | Every 45 min |
-| All-time positive/negative | 498 stored historical reviews | Static (seeded) |
+| All-time positive/negative | Stored historical reviews | Static (seeded) |
+
+## Display rules (hardcoded)
+
+### Total reviews ("reseñas totales")
+- Always use `googleTotalReviews` from `place_meta` (currently **897**), NOT the DB row count.
+
+### Positive / Negative counts (all-time panel)
+- `POSITIVE = round(googleTotalReviews × allTimePositive / (allTimePositive + allTimeNegative))`
+- `NEGATIVE = googleTotalReviews − POSITIVE`
+- This scales the DB-derived ratio to the real Google total, so the sum always equals 897.
+
+### Star rating display
+- Shows a **fractional star** using SVG clip-path — e.g. 4.6 renders as 4 full stars + 1 star at 60% fill.
+- Never rounds to a whole number for display. The `RatingStars` component handles this.
+- Review cards use whole-number stars (`Stars` component) since individual ratings are always integers.
+
+### Pace ("Ritmo necesario")
+- Displayed as **reviews per week**, not per day. Whole numbers are more readable on a TV and more actionable for team planning.
+- Q2 2026 = 91 days = exactly 13 weeks → **21 reviews/week** at the start of Q2.
+- **Pre-Q2**: `round(GOAL / ceil(Q2_days / 7))` — uses full Q2 duration, not days from today.
+- **In-Q2**: `round((GOAL − PROGRESS) / ceil(daysRemaining / 7))` — updates week by week.
 
 ## Google Maps place identifiers
 
@@ -59,7 +80,7 @@ They run in cascade: HasData → SearchAPI → ScrapingDog. If all fail, cached 
 - **Project**: `nvrfoxhwfmierjmkwttt`
 - **URL**: `https://nvrfoxhwfmierjmkwttt.supabase.co`
 - **Tables**: `reviews` and `place_meta` — both live, RLS enabled with full anon access
-- **Current state**: 498 reviews (421 positive, 74 negative, 3 neutral), place_meta shows 897 Google total / 4.6 avg
+- **Current state**: 975 rows total in `reviews` (847×5★ + 15×4★ + 5×3★ + 10×2★ + 98×1★ = 862 positive + 108 negative + 5 neutral); `place_meta` shows **897 Google total / 4.6 avg**
 - **PAT** (`SUPABASE_PAT`): stored as env var
 
 ## Provider status (as of 2026-03-29)
@@ -75,7 +96,7 @@ All providers auto-recover when quotas reset. The dashboard serves cached DB dat
 ## Current trimester
 
 - **Name**: Q2 2026
-- **Period**: April 1 – June 30, 2026
+- **Period**: April 1 – June 30, 2026 (91 days = exactly 13 weeks)
 - **Objective**: 270 positive reviews
 - **Bonus**: €300 per manager
 
@@ -92,3 +113,12 @@ trimester: {
   months: ["July", "August", "September"],
 }
 ```
+
+## UI/design decisions
+
+- **Font size floor**: nothing below 11 px visible on screen (12 px for body copy). TV viewing distance requires this.
+- **Left panel**: Google rating hero → distribution chips (POSITIVAS / NEGATIVAS) → weekly pace → Q2 progress bar.
+- **Center**: Arc gauge showing days remaining / countdown. Motivational quote below.
+- **Right panel**: Live review carousel, auto-advances every 6 s.
+- **Footer**: Fixed progress bar with percentage and objective label.
+- **Language**: Spanish throughout (the team is Spanish-speaking).
