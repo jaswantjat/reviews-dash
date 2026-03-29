@@ -699,12 +699,12 @@ export default function App() {
 
         <div aria-label={`${Q.label} – ${Q.range}, en tiempo real`} style={{
           display: "flex", alignItems: "center", gap: 10,
-          background: "var(--accent-light)", border: "1px solid #C7D2FE",
+          background: "var(--accent-light)", border: "1px solid rgba(129,140,248,0.28)",
           borderRadius: 100, padding: "10px 22px",
         }}>
           <div aria-hidden="true" className="live" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent-mid)" }}/>
           <span style={{ fontSize: 14, fontWeight: 800, color: "var(--accent)", letterSpacing: "-0.01em" }}>{Q.label}</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#818CF8", background: "#E0E7FF", borderRadius: 100, padding: "3px 11px" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", background: "rgba(129,140,248,0.18)", borderRadius: 100, padding: "3px 11px" }}>
             {Q.range}
           </span>
         </div>
@@ -729,7 +729,7 @@ export default function App() {
               <span className="lbl">Google Maps</span>
               <span style={{
                 marginLeft: "auto", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
-                background: "#DCFCE7", color: "#166534", border: "1px solid #BBF7D0",
+                background: "var(--green-bg)", color: "var(--green)", border: "1px solid var(--green-border)",
                 borderRadius: 100, padding: "3px 9px",
               }}>EN VIVO</span>
             </div>
@@ -760,7 +760,7 @@ export default function App() {
             <div style={{ display: "flex", gap: 10 }}>
               <StatChip label="Positivas" value={cntPos.toLocaleString()}
                 bg="var(--green-bg)" border="var(--green-border)"
-                labelColor="var(--green-mid)" valColor="#065F46"
+                labelColor="var(--green-mid)" valColor="var(--green)"
                 subtext="4 – 5 estrellas" subtextColor="#34D399"
               />
               <StatChip label="Negativas" value={NEGATIVE}
@@ -791,14 +791,14 @@ export default function App() {
 
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 7,
-              background: PRE_Q2 ? "var(--accent-light)" : "#FFFBEB",
-              border: PRE_Q2 ? "1px solid #C7D2FE" : "1px solid #FDE68A",
+              background: PRE_Q2 ? "var(--accent-light)" : "var(--gold-bg)",
+              border: PRE_Q2 ? "1px solid rgba(129,140,248,0.28)" : "1px solid var(--gold-border)",
               borderRadius: 10, padding: "9px 14px",
             }}>
-              <svg width={13} height={13} viewBox="0 0 20 20" fill={PRE_Q2 ? "#6366F1" : "#D97706"} aria-hidden="true">
+              <svg width={13} height={13} viewBox="0 0 20 20" fill={PRE_Q2 ? "#6366F1" : "var(--gold)"} aria-hidden="true">
                 <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/>
               </svg>
-              <span style={{ fontSize: 13, fontWeight: 700, color: PRE_Q2 ? "var(--accent)" : "#92400E" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: PRE_Q2 ? "var(--accent)" : "var(--gold-mid)" }}>
                 {PRE_Q2
                   ? `${DAYS_TO_START} días hasta el inicio de ${Q.label.split(" ")[0]}`
                   : `${DAYS} días restantes en ${Q.label.split(" ")[0]}`}
@@ -841,7 +841,7 @@ export default function App() {
             {PRE_Q2 && (
               <div style={{
                 fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase",
-                background: "#EEF2FF", color: "#4F46E5", border: "1px solid #C7D2FE",
+                background: "var(--accent-light)", color: "var(--accent)", border: "1px solid rgba(129,140,248,0.28)",
                 borderRadius: 100, padding: "3px 10px", flexShrink: 0,
               }}>
                 No iniciado
@@ -875,9 +875,9 @@ export default function App() {
                   </div>
                   <div style={{
                     marginTop: 10,
-                    fontSize: 11, fontWeight: 600, color: "#818CF8",
-                    background: "#EEF2FF", borderRadius: 8, padding: "5px 12px",
-                    border: "1px dashed #C7D2FE",
+                    fontSize: 11, fontWeight: 600, color: "var(--accent)",
+                    background: "var(--accent-pale)", borderRadius: 8, padding: "5px 12px",
+                    border: "1px dashed rgba(129,140,248,0.3)",
                   }}>
                     El marcador se activará el {START_LABEL}
                   </div>
@@ -927,7 +927,7 @@ export default function App() {
             <span className="lbl">Lo que dicen tus clientes</span>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div aria-hidden="true" className="live" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E" }}/>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#16A34A" }}>En vivo</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--green)" }}>En vivo</span>
             </div>
           </div>
 
