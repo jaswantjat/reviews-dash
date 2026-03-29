@@ -126,3 +126,21 @@ When today < `trimesterStart`, the dashboard shows a countdown:
 ## Keep-alive
 
 A background job pings Supabase every 12 hours to prevent the free-tier project from pausing due to inactivity.
+
+## UI/UX Skills
+
+The following UI/UX skills from the `ui-ux-pro-max-skill` repository are embedded in `.agents/skills/`:
+
+- **ui-ux-pro-max** — Master design guide: 50+ styles, 161 palettes, 57 font pairings, 99 UX guidelines, 25 chart types
+- **design-system** — Token architecture, component specs, semantic color system
+- **ui-styling** — shadcn/ui, Tailwind, component patterns, dark mode
+- **design** — Brand identity, logo generation, corporate identity program
+- **brand** — Brand voice, visual identity, messaging frameworks
+
+Applied to the dashboard per skill priority order:
+1. Accessibility: `lang="es"`, skip link, `aria-label` on all interactive elements, `aria-hidden` on decorative dots, `aria-live` on score display, landmark roles on `<header>`, `<main>`, `<aside>`, `<footer>`, keyboard-navigable review dots with `role="tab"`
+2. Touch: Review dots are now clickable/keyboard-operable with `cursor: pointer`
+3. Performance: Inter font preload, removed `maximum-scale=1` (viewport zoom lock)
+4. Animation: `prefers-reduced-motion` media query disables all animations for users who prefer it
+5. Typography: Removed non-standard `fontWeight: 420/450` → standard `400/500`
+6. Focus: Visible focus rings via `:focus-visible` CSS rules

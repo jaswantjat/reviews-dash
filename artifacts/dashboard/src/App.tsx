@@ -217,7 +217,7 @@ function Stars({ n, s = 16, gap = 3 }: { n: number; s?: number; gap?: number }) 
 
 function GIcon({ size = 17 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-label="Google" role="img" style={{ flexShrink: 0 }}>
       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -456,7 +456,7 @@ function MotivLine() {
   return (
     <p key={key} className="m-fade" style={{
       margin: 0, padding: "0 20px",
-      fontSize: 15, fontWeight: 450, fontStyle: "italic",
+      fontSize: 15, fontWeight: 400, fontStyle: "italic",
       color: "var(--text-2)", lineHeight: 1.7,
       textAlign: "center", letterSpacing: "-0.005em",
       maxWidth: 440,
@@ -493,7 +493,7 @@ function ReviewCard({ review, cls }: { review: ReviewItem; cls: string }) {
         color: `hsl(${review.hue}, ${review.sat}, 92%)`,
         marginBottom: 12, marginLeft: -4, userSelect: "none", height: 40, overflow: "hidden",
       }}>"</div>
-      <p style={{ margin: "0 0 28px", fontSize: 16.5, fontWeight: 420, lineHeight: 1.8, color: "var(--text-1)", letterSpacing: "-0.01em" }}>
+      <p style={{ margin: "0 0 28px", fontSize: 16.5, fontWeight: 400, lineHeight: 1.8, color: "var(--text-1)", letterSpacing: "-0.01em" }}>
         {review.txt}
       </p>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -630,7 +630,7 @@ export default function App() {
     }}>
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
-      <header style={{
+      <header aria-label="Eltex Reviews Dashboard" style={{
         height: 68, flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 52px", background: "var(--white)",
@@ -651,12 +651,12 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{
+        <div aria-label={`${Q.label} – ${Q.range}, en tiempo real`} style={{
           display: "flex", alignItems: "center", gap: 10,
           background: "var(--accent-light)", border: "1px solid #C7D2FE",
           borderRadius: 100, padding: "10px 22px",
         }}>
-          <div className="live" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent-mid)" }}/>
+          <div aria-hidden="true" className="live" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent-mid)" }}/>
           <span style={{ fontSize: 14, fontWeight: 800, color: "var(--accent)", letterSpacing: "-0.01em" }}>{Q.label}</span>
           <span style={{ fontSize: 10, fontWeight: 700, color: "#818CF8", background: "#E0E7FF", borderRadius: 100, padding: "2px 10px" }}>
             {Q.range}
@@ -670,7 +670,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
         {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
-        <aside style={{
+        <aside aria-label="Métricas de Google Reviews" style={{
           width: 300, flexShrink: 0, background: "var(--bg-panel)",
           borderRight: "1px solid var(--divider)",
           display: "flex", flexDirection: "column", overflow: "hidden",
@@ -779,7 +779,7 @@ export default function App() {
         </aside>
 
         {/* ── CENTER SCOREBOARD ────────────────────────────────────────────── */}
-        <main style={{
+        <main id="main-content" style={{
           flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
           padding: "28px 60px 36px", background: "var(--white)",
@@ -793,7 +793,7 @@ export default function App() {
           <div style={{ position: "relative", width: 360, height: 360, flexShrink: 0 }}>
             <ArcGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} size={360}/>
 
-            <div style={{
+            <div aria-live="polite" aria-atomic="true" style={{
               position: "absolute", inset: 0, display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center", paddingBottom: 48, pointerEvents: "none",
             }}>
@@ -848,7 +848,7 @@ export default function App() {
         </main>
 
         {/* ── RIGHT — REVIEWS ──────────────────────────────────────────────── */}
-        <aside style={{
+        <aside aria-label="Reseñas de clientes en tiempo real" style={{
           width: 390, flexShrink: 0, borderLeft: "1px solid var(--divider)",
           display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg)",
         }}>
@@ -859,7 +859,7 @@ export default function App() {
           }}>
             <span className="lbl">Lo que dicen tus clientes</span>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div className="live" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E" }}/>
+              <div aria-hidden="true" className="live" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E" }}/>
               <span style={{ fontSize: 11, fontWeight: 700, color: "#16A34A" }}>En vivo</span>
             </div>
           </div>
@@ -872,14 +872,24 @@ export default function App() {
             <ReviewCard review={currentReview} cls={revCls}/>
 
             {reviewList.length > 1 && (
-              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 22 }}>
-                {reviewList.map((_, i) => (
-                  <div key={i} style={{
-                    height: 5, borderRadius: 99,
-                    width: i === revIdx ? 26 : 6,
-                    background: i === revIdx ? "var(--accent)" : "var(--divider)",
-                    transition: "width 0.45s cubic-bezier(0.4,0,0.2,1), background 0.45s ease",
-                  }}/>
+              <div role="tablist" aria-label="Reseñas de clientes" style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 22 }}>
+                {reviewList.map((rv, i) => (
+                  <div
+                    key={i}
+                    role="tab"
+                    tabIndex={0}
+                    aria-selected={i === revIdx}
+                    aria-label={`Reseña de ${rv.name}`}
+                    onClick={() => { setRevCls("r-out"); setTimeout(() => { setRevIdx(i); setRevCls("r-in"); }, 350); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setRevCls("r-out"); setTimeout(() => { setRevIdx(i); setRevCls("r-in"); }, 350); } }}
+                    style={{
+                      height: 5, borderRadius: 99,
+                      width: i === revIdx ? 26 : 6,
+                      background: i === revIdx ? "var(--accent)" : "var(--divider)",
+                      transition: "width 0.45s cubic-bezier(0.4,0,0.2,1), background 0.45s ease",
+                      cursor: "pointer",
+                    }}
+                  />
                 ))}
               </div>
             )}
@@ -915,7 +925,7 @@ export default function App() {
         <div style={{ width: 1, height: 18, background: "var(--divider)", flexShrink: 0 }}/>
 
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
-          <div className="live" style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }}/>
+          <div aria-hidden="true" className="live" style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E" }}/>
           <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)" }}>Tiempo real</span>
         </div>
       </footer>
