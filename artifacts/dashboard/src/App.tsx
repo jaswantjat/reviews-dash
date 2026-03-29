@@ -335,31 +335,56 @@ function ProgressBar({ pct, height = 8 }: { pct: number; height?: number }) {
 function ArcGauge({ value, total, size = 360 }: { value: number; total: number; size?: number }) {
   const cx  = size / 2;
   const cy  = size / 2;
-  const R   = size / 2 - 32;
-  const SW  = 22;
+  const R   = size / 2 - 30;
+  const SW  = 24;
   const pct = Math.min(value / Math.max(total, 1), 1);
 
-  const pt = (deg: number): [number, number] => {
-    const rad = (deg - 90) * Math.PI / 180;
-    return [cx + R * Math.cos(rad), cy + R * Math.sin(rad)];
-  };
-
-  function pt_r(deg: number, r: number): [number, number] {
+  // Convert degree → SVG [x, y], optionally at custom radius
+  const pt = (deg: number, r = R): [number, number] => {
     const rad = (deg - 90) * Math.PI / 180;
     return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
-  }
+  };
 
-  const [sx, sy] = pt(225);
-  const [ex, ey] = pt(135);
+  // Arc spans 225° → 135° (clockwise, 270° total)
+  const START = 225, SWEEP = 270;
+  const [sx, sy] = pt(START);
+  const [ex, ey] = pt(START + SWEEP);
+
   const trackD = `M ${sx} ${sy} A ${R} ${R} 0 1 1 ${ex} ${ey}`;
 
-  const fillEndDeg = 225 + pct * 270;
-  const fillSpan   = pct * 270;
+  const fillEndDeg = START + pct * SWEEP;
+  const fillSpan   = pct * SWEEP;
   const [fxT, fyT] = pt(fillEndDeg);
-  const fillD = pct > 0.002
+  const fillD = pct > 0.004
     ? `M ${sx} ${sy} A ${R} ${R} 0 ${fillSpan > 180 ? 1 : 0} 1 ${fxT} ${fyT}`
     : null;
 
+  // 12 tick marks evenly across the 270° sweep (major at 0, 3, 6, 9, 12)
+  const TICK_COUNT = 12;
+  const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) => {
+    const frac    = i / TICK_COUNT;
+    const deg     = START + frac * SWEEP;
+    const isMajor = i % 3 === 0;
+    const half    = isMajor ? (SW / 2 + 8) : (SW / 2 + 3);
+    return {
+      inner: pt(deg, R - half),
+      outer: pt(deg, R + half),
+      isMajor,
+    };
+  });
+
+  // Milestone markers at 25 %, 50 %, 75 % – drawn AFTER fill so they cut through
+  const milestones = [0.25, 0.5, 0.75].map(m => {
+    const deg = START + m * SWEEP;
+    return {
+      inner: pt(deg, R - SW / 2 - 4),
+      outer: pt(deg, R + SW / 2 + 4),
+      label: Math.round(m * total),
+      labelPt: pt(deg, R + SW / 2 + 20),
+    };
+  });
+
+  // Animated tip
   const tipRef   = useRef<SVGCircleElement>(null);
   const haloRef  = useRef<SVGCircleElement>(null);
   const shineRef = useRef<SVGCircleElement>(null);
@@ -372,15 +397,15 @@ function ArcGauge({ value, total, size = 360 }: { value: number; total: number; 
       const c1 = 1.2, c3 = c1 + 1;
       return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
     };
-    const startDeg = 225;
-    const endDeg   = 225 + pct * 270;
+    const startDeg = START;
+    const endDeg   = START + pct * SWEEP;
     startRef.current = null;
 
     const tick = (ts: number) => {
       if (!startRef.current) startRef.current = ts;
       const prog = Math.min((ts - startRef.current) / duration, 1);
       const easedProg = pct < 0.15 ? prog : easeOutBack(prog);
-      const curDeg = startDeg + easedProg * (endDeg - startDeg);
+      const curDeg    = startDeg + easedProg * (endDeg - startDeg);
       const [cx2, cy2] = pt(curDeg);
       tipRef.current?.setAttribute("cx", String(cx2));
       tipRef.current?.setAttribute("cy", String(cy2));
@@ -404,69 +429,130 @@ function ArcGauge({ value, total, size = 360 }: { value: number; total: number; 
     return () => clearTimeout(id);
   }, [pct]);
 
-  const milestones = [0.25, 0.5, 0.75].map(m => {
-    const deg = 225 + m * 270;
-    const inner = pt_r(deg, R - SW / 2 - 6);
-    const outer = pt_r(deg, R + SW / 2 + 6);
-    return { inner, outer };
-  });
-
   const isNearGoal = pct > 0.8;
-  const tipX0 = sx;
-  const tipY0 = sy;
+  const tipX0 = sx, tipY0 = sy;
+
+  // Label positions for 0 and GOAL below the arc ends
+  const zeroLabelPt = pt(START,   R + SW / 2 + 20);
+  const goalLabelPt = pt(START + SWEEP, R + SW / 2 + 20);
 
   return (
     <svg width={size} height={size} style={{ overflow: "visible" }} className={isNearGoal ? "arc-glow" : ""}>
       <defs>
+        {/* Fill gradient: deep indigo → violet */}
         <linearGradient id="arcFill" x1={sx} y1={sy} x2={ex} y2={ey} gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stopColor="#4338CA"/>
           <stop offset="55%"  stopColor="#6366F1"/>
           <stop offset="100%" stopColor="#818CF8"/>
         </linearGradient>
-        <linearGradient id="arcTrack" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stopColor="rgba(0,0,0,0.08)"/>
-          <stop offset="100%" stopColor="rgba(0,0,0,0.05)"/>
-        </linearGradient>
-        <filter id="tipGlow" x="-80%" y="-80%" width="260%" height="260%">
+
+        {/* Outer drop-shadow on track for depth */}
+        <filter id="trackShadow" x="-15%" y="-15%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="3" stdDeviation="4"
+            floodColor="rgba(67,56,202,0.12)" floodOpacity="1"/>
+        </filter>
+
+        {/* Soft glow behind fill arc */}
+        <filter id="fillGlow" x="-25%" y="-25%" width="150%" height="150%">
           <feGaussianBlur stdDeviation="5" result="blur"/>
           <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
-        <filter id="fillGlow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="3" result="blur"/>
+
+        {/* Tip glowing dot */}
+        <filter id="tipGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
           <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
 
-      <path d={trackD} fill="none" stroke="url(#arcTrack)" strokeWidth={SW} strokeLinecap="round"/>
-      <path d={trackD} fill="none" stroke="rgba(100,120,180,0.12)" strokeWidth={SW - 10} strokeLinecap="round"/>
+      {/* ── Layer 1: track shadow (wide, blurred) ─────────────────────────── */}
+      <path d={trackD} fill="none"
+        stroke="rgba(67,56,202,0.07)" strokeWidth={SW + 10} strokeLinecap="round"
+        filter="url(#trackShadow)"/>
 
-      {milestones.map(({ inner, outer }, i) => (
-        <line key={i} x1={inner[0]} y1={inner[1]} x2={outer[0]} y2={outer[1]}
-          stroke="rgba(255,255,255,0.95)" strokeWidth={2.5} strokeLinecap="round"/>
+      {/* ── Layer 2: main track — solid, clearly visible on white ─────────── */}
+      <path d={trackD} fill="none"
+        stroke="#D6E2F5" strokeWidth={SW} strokeLinecap="round"/>
+
+      {/* ── Layer 3: inner track groove (subtle concave feel) ─────────────── */}
+      <path d={trackD} fill="none"
+        stroke="#C2D3EE" strokeWidth={SW - 14} strokeLinecap="round" opacity="0.7"/>
+
+      {/* ── Layer 4: tick marks (drawn before fill so fill can cover them) ── */}
+      {ticks.map(({ inner, outer, isMajor }, i) => (
+        <line key={i}
+          x1={inner[0]} y1={inner[1]} x2={outer[0]} y2={outer[1]}
+          stroke={isMajor ? "#9AB4D8" : "#BBCFE8"}
+          strokeWidth={isMajor ? 2.5 : 1.5}
+          strokeLinecap="round"
+        />
       ))}
 
-      {fillD && <>
-        <path d={fillD} fill="none" stroke="url(#arcFill)" strokeWidth={SW + 14} strokeLinecap="round"
-          pathLength="100" strokeDasharray="100" strokeDashoffset={dash} opacity="0.18"
-          filter="url(#fillGlow)"
+      {/* ── Layer 5: fill glow halo ───────────────────────────────────────── */}
+      {fillD && (
+        <path d={fillD} fill="none" stroke="url(#arcFill)"
+          strokeWidth={SW + 18} strokeLinecap="round"
+          pathLength="100" strokeDasharray="100" strokeDashoffset={dash}
+          opacity="0.20" filter="url(#fillGlow)"
           style={{ transition: `stroke-dashoffset ${pct < 0.15 ? 2 : 2.2}s ${pct < 0.15 ? "linear" : "cubic-bezier(0.4,0,0.2,1)"}` }}
         />
-        <path d={fillD} fill="none" stroke="url(#arcFill)" strokeWidth={SW} strokeLinecap="round"
+      )}
+
+      {/* ── Layer 6: fill arc main ────────────────────────────────────────── */}
+      {fillD && (
+        <path d={fillD} fill="none" stroke="url(#arcFill)"
+          strokeWidth={SW} strokeLinecap="round"
           pathLength="100" strokeDasharray="100" strokeDashoffset={dash}
           style={{ transition: `stroke-dashoffset ${pct < 0.15 ? 2 : 2.2}s ${pct < 0.15 ? "linear" : "cubic-bezier(0.4,0,0.2,1)"}` }}
         />
-      </>}
+      )}
 
-      <circle cx={sx} cy={sy} r={SW / 2} fill={fillD ? "#4338CA" : "rgba(129,140,248,0.25)"}/>
+      {/* ── Layer 7: milestone gap lines — ON TOP of fill (key fix!) ─────── */}
+      {milestones.map(({ inner, outer }, i) => (
+        <line key={i}
+          x1={inner[0]} y1={inner[1]} x2={outer[0]} y2={outer[1]}
+          stroke="white" strokeWidth={3.5} strokeLinecap="round"/>
+      ))}
 
-      {pct > 0.002 && <>
-        <circle ref={haloRef} cx={tipX0} cy={tipY0} r={SW / 2 + 7}
-          fill="none" stroke="#6366F1" strokeWidth={2} opacity={0.35}/>
+      {/* ── Layer 8: start cap — pulsing ring when idle ───────────────────── */}
+      {!fillD && (
+        <circle cx={sx} cy={sy} r={SW / 2}
+          fill="none" stroke="#6366F1" strokeWidth={1.5}
+          className="gauge-idle-ring"/>
+      )}
+      <circle cx={sx} cy={sy} r={SW / 2}
+        fill={fillD ? "#4338CA" : "#C2D3EE"}
+        stroke={fillD ? "rgba(255,255,255,0.3)" : "#A8C0E0"}
+        strokeWidth={1.5}
+        className={!fillD ? "gauge-idle-cap" : undefined}
+      />
+
+      {/* ── Layer 9: end cap (goal marker) ───────────────────────────────── */}
+      <circle cx={ex} cy={ey} r={SW / 2 - 3}
+        fill="#D6E2F5" stroke="#A8C0E0" strokeWidth={1.5}/>
+      <circle cx={ex} cy={ey} r={4} fill="#9AB4D8"/>
+
+      {/* ── Layer 10: animated tip ────────────────────────────────────────── */}
+      {pct > 0.004 && <>
+        <circle ref={haloRef} cx={tipX0} cy={tipY0} r={SW / 2 + 9}
+          fill="none" stroke="#6366F1" strokeWidth={2.5} opacity={0.25}/>
         <circle ref={tipRef} cx={tipX0} cy={tipY0} r={SW / 2 + 2}
           fill="url(#arcFill)" filter="url(#tipGlow)"/>
-        <circle ref={shineRef} cx={tipX0} cy={tipY0} r={SW / 2 - 4}
-          fill="rgba(255,255,255,0.25)" style={{ pointerEvents: "none" }}/>
+        <circle ref={shineRef} cx={tipX0} cy={tipY0} r={SW / 2 - 5}
+          fill="rgba(255,255,255,0.32)" style={{ pointerEvents: "none" }}/>
       </>}
+
+      {/* ── Layer 11: arc end labels (0 and goal value) ──────────────────── */}
+      <text x={zeroLabelPt[0]} y={zeroLabelPt[1]}
+        textAnchor="middle" dominantBaseline="middle"
+        fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">
+        0
+      </text>
+      <text x={goalLabelPt[0]} y={goalLabelPt[1]}
+        textAnchor="middle" dominantBaseline="middle"
+        fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">
+        {total}
+      </text>
     </svg>
   );
 }
