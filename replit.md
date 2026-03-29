@@ -60,7 +60,7 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 - **Service role key**: in `lib/db/src/supabase.ts`
 - **PAT**: stored as `SUPABASE_PAT` env var
 - **Tables**: `reviews` (**975 rows** stored as of 2026-03-29) + `place_meta` (1 row: 897 Google-reported total / 4.6 avg)
-- **Important**: We store **975 unique reviews** in Supabase (slightly more than Google's reported 897, which can be stale). Breakdown: **862 positive** (4–5 stars) + **108 negative** (1–2 stars) + **5 neutral** (3-star) = 975. The dashboard "reseñas totales" shows `allTimeTotal` (975) so it always matches the positive/negative counts shown below it. Google's 897 is used only for the average rating source-of-truth.
+- **Important**: We store **975 unique reviews** in Supabase. The dashboard "reseñas totales" counter shows `googleTotalReviews` (897) from `place_meta` — the number Google officially reports. The positive/negative chip counts below it come from `allTimePositive`/`allTimeNegative` which are scored from stored DB rows. Google's 897 is also the source-of-truth for the average rating.
 - **RLS**: enabled, anon key has full read/write access (non-sensitive data)
 - **Setup SQL**: `supabase-setup.sql` (already applied)
 
