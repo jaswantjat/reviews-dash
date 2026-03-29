@@ -574,7 +574,7 @@ export default function App() {
   const GOAL          = data?.objective ?? 270;
   const PROGRESS      = data?.netScore ?? 0;
   const RATING        = data?.googleAvgRating ?? 4.6;
-  const TOTAL         = data?.googleTotalReviews ?? 0;
+  const TOTAL         = data?.allTimeTotal ?? 0;
   const POSITIVE      = data?.allTimePositive ?? 0;
   const NEGATIVE      = data?.allTimeNegative ?? 0;
   const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
