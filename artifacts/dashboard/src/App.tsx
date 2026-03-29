@@ -40,15 +40,13 @@ interface DashboardData {
 }
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────
-const BONUS = 300;
-
 const MOTIV = [
   "Un cliente satisfecho es el mejor comercial que existe.",
   "Cada llamada resuelta es una reseña de 5 estrellas esperando.",
   "¡Sois el equipo que puede lograrlo — 270 reseñas este trimestre!",
   "Resuelve rápido, fideliza para siempre.",
   "La próxima reseña puede llegar de tu próxima llamada.",
-  "Trato excelente → cliente feliz → reseña → €300 bonus.",
+  "Trato excelente → cliente feliz → reseña en Google.",
 ];
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -589,12 +587,7 @@ export default function App() {
     range: data ? quarterRange(data.trimesterStart, data.trimesterEnd) : "ABR – JUN 2026",
   };
 
-  const REVIEWS = data?.recentActivity?.length
-    ? toReviewCards(data.recentActivity.filter(r => r.text))
-    : toReviewCards(data?.recentActivity ?? []);
-
-  // If all reviews have no text, just use all of them
-  const reviewList = REVIEWS.length > 0 ? REVIEWS : toReviewCards(data?.recentActivity ?? []);
+  const reviewList = toReviewCards(data?.recentActivity ?? []);
 
   const remaining = Math.max(0, GOAL - PROGRESS);
   const pct = Math.round((PROGRESS / Math.max(GOAL, 1)) * 100);
@@ -610,7 +603,7 @@ export default function App() {
         setRevIdx(i => (i + 1) % reviewList.length);
         setRevCls("r-in");
       }, 350);
-    }, 9000);
+    }, 6000);
     return () => clearInterval(id);
   }, [reviewList.length]);
 
@@ -837,28 +830,6 @@ export default function App() {
               )}
             </div>
 
-            <div style={{
-              position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
-              zIndex: 3, whiteSpace: "nowrap",
-            }}>
-              <div className="gold-shine" style={{
-                display: "inline-flex", flexDirection: "column", alignItems: "center",
-                padding: "10px 28px 9px", borderRadius: 100,
-                border: "1.5px solid #FDE68A",
-                boxShadow: "0 4px 20px rgba(161,98,7,0.12), 0 1px 4px rgba(0,0,0,0.04)",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Star s={13} on/>
-                  <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.5px", color: "#78350F" }}>
-                    €{BONUS} bonus
-                  </span>
-                  <Star s={13} on/>
-                </div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#92400E", letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>
-                  por gestor al alcanzar el objetivo
-                </div>
-              </div>
-            </div>
           </div>
 
           <div style={{
@@ -869,8 +840,8 @@ export default function App() {
             {PRE_Q2
               ? `¡Preparad — ${Q.label} arranca el ${START_LABEL}!`
               : remaining > 0
-                ? `Faltan ${remaining} reseñas positivas para el bonus`
-                : "¡Objetivo alcanzado — bonus conseguido!"}
+                ? `Faltan ${remaining} reseñas positivas para el objetivo`
+                : "¡Objetivo alcanzado!"}
           </div>
 
           <MotivLine/>
@@ -940,15 +911,6 @@ export default function App() {
         <span style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", flexShrink: 0 }}>
           {PRE_Q2 ? "—" : `${pct}%`}
         </span>
-
-        <div style={{ width: 1, height: 18, background: "var(--divider)", flexShrink: 0 }}/>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <Star s={12} on/>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--gold-mid)" }}>
-            €{BONUS} bonus por gestor al alcanzar el objetivo
-          </span>
-        </div>
 
         <div style={{ width: 1, height: 18, background: "var(--divider)", flexShrink: 0 }}/>
 

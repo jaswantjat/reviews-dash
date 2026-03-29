@@ -167,7 +167,7 @@ async function buildDashboardFromDb() {
     const placeId = getPlaceIdFromQuery(loc.googleMapsQuery);
 
     const dbReviews = await getAllReviewsForPlace(placeId);
-    const recentDbReviews = await getRecentReviewsForPlace(placeId, 8);
+    const recentDbReviews = await getRecentReviewsForPlace(placeId, 20);
     const meta = await getPlaceMeta(placeId);
 
     const reviewsForScoring = dbReviews.map((review) => ({
