@@ -82,7 +82,7 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 | SearchAPI | 100 calls/month | `SEARCHAPI_KEY` | same place_id |
 | ScrapingDog | One-time credits | `SCRAPING_DOG_API_KEY` | `DATA_ID_ELTEX` = `0x12a4a3e6799a3085:0x9d88aa209e58efe0` |
 
-**Status as of 2026-03-29**: All three providers are temporarily rate-limited. They auto-recover when quotas reset.
+**Status as of 2026-03-29**: HasData is rate-limited (old key). SearchAPI (new key) and ScrapingDog (new key) are active and working.
 
 ## Environment Variables
 
@@ -90,8 +90,8 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 |-----|-----------|-------|
 | `SUPABASE_PAT` | Replit env var | Supabase Personal Access Token |
 | `HASDATA_API_KEY` | Hardcoded fallback in config.ts | `c7d8134a-3e82-45db-b8d4-ed252eec9261` |
-| `SCRAPING_DOG_API_KEY` | Hardcoded fallback in config.ts | `69c83a377ad43e9744e8f679` |
-| `SEARCHAPI_KEY` | Hardcoded fallback in config.ts | `vDXor7nhp1trnbZuX2mPQap8` |
+| `SCRAPING_DOG_API_KEY` | Replit env var + hardcoded fallback in config.ts | `69c93a0dc12e078c544a57d8` |
+| `SEARCHAPI_KEY` | Replit env var + hardcoded fallback in config.ts | `2BcSHdpwMRps8xR611yFUaPW` |
 | `PLACE_ID_ELTEX` | Hardcoded fallback in services/reviews.ts | `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
 | `DATA_ID_ELTEX` | Hardcoded fallback in services/reviews.ts | `0x12a4a3e6799a3085:0x9d88aa209e58efe0` |
 
