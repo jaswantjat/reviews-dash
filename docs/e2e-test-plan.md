@@ -96,7 +96,7 @@
 
 - Poll interval is 45 min (`REVIEWS_POLL_INTERVAL_MS=2700000`)
 - After a poll, `updatedAt` timestamp advances
-- If an external provider call fails, the server falls back to the next provider in the cascade (HasData → SearchAPI → ScrapingDog)
+- If an external provider call fails, the server falls back to the next provider in the cascade (SearchAPI → Apify)
 - Failed provider does not crash the poller; next scheduled poll still fires
 
 ---

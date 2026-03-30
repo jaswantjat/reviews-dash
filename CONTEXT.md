@@ -21,8 +21,8 @@ If the team reaches that number by the end of the trimester, every manager earns
 
 We only use **Google Maps reviews**. No other platforms (Trustpilot, Facebook, etc.).
 
-The four scraping providers — HasData, SearchAPI, Apify, ScrapingDog — all pull from Google Maps.
-They run in cascade: HasData → SearchAPI → Apify → ScrapingDog. If all fail, cached data is served.
+The two scraping providers — SearchAPI and Apify — both pull from Google Maps.
+They run in cascade: SearchAPI → Apify. If all fail, cached data is served.
 
 ## Real-time vs. historical data
 
@@ -72,7 +72,6 @@ They run in cascade: HasData → SearchAPI → Apify → ScrapingDog. If all fai
 ## Google Maps place identifiers
 
 - **Place ID**: `ChIJhTCaeeajpBIR4O9YniCqiJ0`
-- **Data ID** (ScrapingDog): `0x12a4a3e6799a3085:0x9d88aa209e58efe0`
 - **DB place_id** (internal, base64 of query string): `RWx0ZXggc29sYXIgRXNwYcOxYQ==`
 
 ## Supabase database (as of 2026-03-29)
@@ -87,11 +86,10 @@ They run in cascade: HasData → SearchAPI → Apify → ScrapingDog. If all fai
 
 | Provider | Status | Quota |
 |---|---|---|
-| HasData | 403 — rate limited | 1,000 calls/month |
-| SearchAPI | 429 — rate limited | 100 calls/month |
-| ScrapingDog | 403 after ~100 reviews | One-time credits, partially used |
+| SearchAPI | Active | 100 calls/month |
+| Apify | Active | Pay-per-use |
 
-All providers auto-recover when quotas reset. The dashboard serves cached DB data in the meantime.
+Providers auto-recover when quotas reset. The dashboard serves cached DB data in the meantime.
 
 ## Current trimester
 

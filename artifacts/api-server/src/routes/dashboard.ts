@@ -281,7 +281,7 @@ export async function buildMergedDashboard() {
 
   // We trust DB all-time stats only when we have enough reviews seeded.
   // Threshold: at least 100 reviews, OR at least 20% of the known Google total.
-  // Without this check, 8 ScrapingDog reviews would replace the 500-review baseline.
+  // Without this check, a small initial fetch would replace the full baseline.
   const googleKnown = dbData.googleTotalReviews > 0
     ? dbData.googleTotalReviews
     : HARDCODED_DASHBOARD.googleTotalReviews;
