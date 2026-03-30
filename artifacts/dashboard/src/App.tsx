@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { RadialBarChart, RadialBar } from "recharts";
 
 // ─── HTML SANITISER ────────────────────────────────────────────────────────
 function stripHtml(html: string): string {
@@ -332,68 +331,117 @@ function ProgressBar({ pct, height = 8 }: { pct: number; height?: number }) {
   );
 }
 
-// ─── RADIAL GAUGE (Recharts) ───────────────────────────────────────────────
+// ─── RADIAL GAUGE (custom SVG semicircle) ────────────────────────────────
+//
+// Geometry:  cx=180, cy=230, R=158, SW=44
+//   LEFT  = (22, 230)   RIGHT = (338, 230)   TOP = (180, 72)
+//   Inner arc top = 230 − 136 = 94   Visual centre = (94+230)/2 ≈ 162
+//
+// Fill uses strokeDashoffset trick on the full track path for smooth CSS
+// transition as the progress value changes.
+//
 function RadialGauge({ value, total, size = 360 }: { value: number; total: number; size?: number }) {
-  const progress  = Math.max(0, Math.min(value, total));
-  const remaining = Math.max(0, total - progress);
-  const chartData = [{ progress, remaining }];
-  const pct       = progress / Math.max(total, 1);
+  const cx  = size / 2;
+  const cy  = Math.round(size * 0.639);  // ~230 — flat edge at 64 % of height
+  const R   = Math.round(size * 0.439);  // ~158 — 22 px margin on each side
+  const SW  = 44;                        // ring stroke width
+  const pct = Math.max(0, Math.min(value / Math.max(total, 1), 1));
 
-  // Semicircle (180° sweep). cy is placed at ~61 % of the box height so the
-  // arc fills the upper portion and the flat edge sits near the bottom third.
-  const innerR = Math.round(size * 0.305); // ~110 px
-  const outerR = Math.round(size * 0.440); // ~158 px
-  const cyPos  = Math.round(size * 0.610); // ~220 px
+  // Point on the arc at fraction f  (0 = LEFT, 1 = RIGHT, 0.5 = TOP)
+  // sweeps clockwise over the top in screen coords (y-down)
+  const pt = (f: number, r = R): [number, number] => [
+    cx + r * Math.cos(Math.PI * (1 - f)),
+    cy - r * Math.sin(Math.PI * (1 - f)),
+  ];
 
-  // 0-label (left end) and goal-label (right end) – positioned just below flat edge
-  const labelY = cyPos + 22;
-  const labelXLeft  = size / 2 - outerR - 4;
-  const labelXRight = size / 2 + outerR + 4;
+  const [lx, ly] = pt(0); // left end  ≈ (22, 230)
+  const [rx, ry] = pt(1); // right end ≈ (338, 230)
+
+  // Full semicircle path — used for both track and (clipped) fill
+  const trackD = [
+    `M ${lx.toFixed(1)} ${ly.toFixed(1)}`,
+    `A ${R} ${R} 0 0 1 ${rx.toFixed(1)} ${ry.toFixed(1)}`,
+  ].join(" ");
+
+  // Milestone divider lines at 25 %, 50 %, 75 %
+  const milestones = [0.25, 0.50, 0.75].map(f => ({
+    p1: pt(f, R - SW / 2 - 3),
+    p2: pt(f, R + SW / 2 + 3),
+  }));
+
+  const isNearGoal = pct > 0.8;
 
   return (
-    <div
-      className={pct > 0.8 ? "arc-glow" : undefined}
-      style={{ width: size, height: size, position: "relative" }}
+    <svg
+      width={size} height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className={isNearGoal ? "arc-glow" : undefined}
+      style={{ display: "block", overflow: "visible" }}
+      aria-hidden="true"
     >
-      <RadialBarChart
-        width={size}
-        height={size}
-        data={chartData}
-        cx={size / 2}
-        cy={cyPos}
-        startAngle={180}
-        endAngle={0}
-        innerRadius={innerR}
-        outerRadius={outerR}
-      >
-        <defs>
-          <linearGradient id="gaugeGrad" x1="1" y1="0" x2="0" y2="0">
-            <stop offset="0%"   stopColor="#818CF8"/>
-            <stop offset="100%" stopColor="#4338CA"/>
-          </linearGradient>
-        </defs>
-        <RadialBar dataKey="progress"  stackId="a" cornerRadius={5} fill="url(#gaugeGrad)" stroke="none"/>
-        <RadialBar dataKey="remaining" stackId="a" cornerRadius={5} fill="#D6E2F5"         stroke="none"/>
-      </RadialBarChart>
+      <defs>
+        {/* Gradient mapped horizontally across the full arc width */}
+        <linearGradient id="gaugeGrad" x1={lx} y1={cy} x2={rx} y2={cy} gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor="var(--accent)"/>
+          <stop offset="55%"  stopColor="var(--accent-mid)"/>
+          <stop offset="100%" stopColor="#818CF8"/>
+        </linearGradient>
+        {/* Soft elevation shadow for the fill bar */}
+        <filter id="gaugeGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="7"
+            floodColor="var(--accent)" floodOpacity="0.22"/>
+        </filter>
+      </defs>
 
-      {/* End-point labels: 0 ── goal */}
-      <svg
-        style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}
-        width={size} height={size}
-      >
-        <text x={labelXLeft}  y={labelY} textAnchor="end"   dominantBaseline="middle"
-          fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">0</text>
-        <text x={labelXRight} y={labelY} textAnchor="start" dominantBaseline="middle"
-          fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">{total}</text>
+      {/* ── 1. Track — full light-blue ring ──────────────────────────────── */}
+      <path d={trackD} fill="none"
+        stroke="#D6E2F5" strokeWidth={SW} strokeLinecap="round"/>
+      {/* Inner groove — gives the ring a subtle pressed/concave look */}
+      <path d={trackD} fill="none"
+        stroke="#C3D2EA" strokeWidth={SW - 20} strokeLinecap="round" opacity="0.50"/>
 
-        {/* Thin separator line between the two labels (the flat edge of the semicircle) */}
-        <line
-          x1={size / 2 - outerR + 6} y1={cyPos}
-          x2={size / 2 + outerR - 6} y2={cyPos}
-          stroke="#D6E2F5" strokeWidth={2}
+      {/* ── 2. Milestone dividers drawn BEHIND the fill ───────────────────── */}
+      {milestones.map(({ p1, p2 }, i) => (
+        <line key={`mb${i}`}
+          x1={p1[0].toFixed(1)} y1={p1[1].toFixed(1)}
+          x2={p2[0].toFixed(1)} y2={p2[1].toFixed(1)}
+          stroke="white" strokeWidth={3} strokeLinecap="round"/>
+      ))}
+
+      {/* ── 3. Fill arc — clipped by strokeDashoffset for smooth animation ── */}
+      {pct > 0 && (
+        <path d={trackD} fill="none"
+          stroke="url(#gaugeGrad)" strokeWidth={SW} strokeLinecap="round"
+          pathLength="1" strokeDasharray="1" strokeDashoffset={1 - pct}
+          filter="url(#gaugeGlow)"
+          style={{
+            transition: "stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
         />
-      </svg>
-    </div>
+      )}
+
+      {/* ── 4. Milestone dividers drawn ON TOP of the fill ───────────────── */}
+      {milestones.map(({ p1, p2 }, i) => (
+        <line key={`mt${i}`}
+          x1={p1[0].toFixed(1)} y1={p1[1].toFixed(1)}
+          x2={p2[0].toFixed(1)} y2={p2[1].toFixed(1)}
+          stroke="white" strokeWidth={3} strokeLinecap="round"/>
+      ))}
+
+      {/* ── 5. End-point labels: 0 (left) and goal (right) ───────────────── */}
+      <text
+        x={(lx - 9).toFixed(1)} y={(ly + 21).toFixed(1)}
+        textAnchor="end" dominantBaseline="middle"
+        fontSize={11} fontWeight={700} fill="var(--text-3)"
+        fontFamily="Inter, system-ui, sans-serif"
+      >0</text>
+      <text
+        x={(rx + 9).toFixed(1)} y={(ry + 21).toFixed(1)}
+        textAnchor="start" dominantBaseline="middle"
+        fontSize={11} fontWeight={700} fill="var(--text-3)"
+        fontFamily="Inter, system-ui, sans-serif"
+      >{total}</text>
+    </svg>
   );
 }
 
