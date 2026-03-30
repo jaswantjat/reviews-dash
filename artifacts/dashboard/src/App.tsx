@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { RadialBarChart, RadialBar } from "recharts";
 
 // ─── HTML SANITISER ────────────────────────────────────────────────────────
 function stripHtml(html: string): string {
@@ -331,231 +332,72 @@ function ProgressBar({ pct, height = 8 }: { pct: number; height?: number }) {
   );
 }
 
-// ─── ARC GAUGE ─────────────────────────────────────────────────────────────
-function ArcGauge({ value, total, size = 360 }: { value: number; total: number; size?: number }) {
-  const cx  = size / 2;
-  const cy  = size / 2;
-  const R   = size / 2 - 30;
-  const SW  = 24;
-  const pct = Math.min(value / Math.max(total, 1), 1);
+// ─── RADIAL GAUGE (Recharts) ───────────────────────────────────────────────
+function RadialGauge({ value, total, size = 360 }: { value: number; total: number; size?: number }) {
+  const progress  = Math.max(0, Math.min(value, total));
+  const remaining = Math.max(0, total - progress);
+  const chartData = [{ progress, remaining }];
+  const pct       = progress / Math.max(total, 1);
 
-  // Convert degree → SVG [x, y], optionally at custom radius
-  const pt = (deg: number, r = R): [number, number] => {
-    const rad = (deg - 90) * Math.PI / 180;
-    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
-  };
+  // Semicircle (180° sweep). cy is placed at ~61 % of the box height so the
+  // arc fills the upper portion and the flat edge sits near the bottom third.
+  const innerR = Math.round(size * 0.305); // ~110 px
+  const outerR = Math.round(size * 0.440); // ~158 px
+  const cyPos  = Math.round(size * 0.610); // ~220 px
 
-  // Arc spans 225° → 135° (clockwise, 270° total)
-  const START = 225, SWEEP = 270;
-  const [sx, sy] = pt(START);
-  const [ex, ey] = pt(START + SWEEP);
-
-  const trackD = `M ${sx} ${sy} A ${R} ${R} 0 1 1 ${ex} ${ey}`;
-
-  const fillEndDeg = START + pct * SWEEP;
-  const fillSpan   = pct * SWEEP;
-  const [fxT, fyT] = pt(fillEndDeg);
-  const fillD = pct > 0.004
-    ? `M ${sx} ${sy} A ${R} ${R} 0 ${fillSpan > 180 ? 1 : 0} 1 ${fxT} ${fyT}`
-    : null;
-
-  // 12 tick marks evenly across the 270° sweep (major at 0, 3, 6, 9, 12)
-  const TICK_COUNT = 12;
-  const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) => {
-    const frac    = i / TICK_COUNT;
-    const deg     = START + frac * SWEEP;
-    const isMajor = i % 3 === 0;
-    const half    = isMajor ? (SW / 2 + 8) : (SW / 2 + 3);
-    return {
-      inner: pt(deg, R - half),
-      outer: pt(deg, R + half),
-      isMajor,
-    };
-  });
-
-  // Milestone markers at 25 %, 50 %, 75 % – drawn AFTER fill so they cut through
-  const milestones = [0.25, 0.5, 0.75].map(m => {
-    const deg = START + m * SWEEP;
-    return {
-      inner: pt(deg, R - SW / 2 - 4),
-      outer: pt(deg, R + SW / 2 + 4),
-      label: Math.round(m * total),
-      labelPt: pt(deg, R + SW / 2 + 20),
-    };
-  });
-
-  // Animated tip
-  const tipRef   = useRef<SVGCircleElement>(null);
-  const haloRef  = useRef<SVGCircleElement>(null);
-  const shineRef = useRef<SVGCircleElement>(null);
-  const animRef  = useRef<number | null>(null);
-  const startRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const duration = 2200;
-    const easeOutBack = (t: number) => {
-      const c1 = 1.2, c3 = c1 + 1;
-      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-    };
-    const startDeg = START;
-    const endDeg   = START + pct * SWEEP;
-    startRef.current = null;
-
-    const tick = (ts: number) => {
-      if (!startRef.current) startRef.current = ts;
-      const prog = Math.min((ts - startRef.current) / duration, 1);
-      const easedProg = pct < 0.15 ? prog : easeOutBack(prog);
-      const curDeg    = startDeg + easedProg * (endDeg - startDeg);
-      const [cx2, cy2] = pt(curDeg);
-      tipRef.current?.setAttribute("cx", String(cx2));
-      tipRef.current?.setAttribute("cy", String(cy2));
-      haloRef.current?.setAttribute("cx", String(cx2));
-      haloRef.current?.setAttribute("cy", String(cy2));
-      shineRef.current?.setAttribute("cx", String(cx2));
-      shineRef.current?.setAttribute("cy", String(cy2));
-      if (prog < 1) animRef.current = requestAnimationFrame(tick);
-    };
-
-    const delay = setTimeout(() => { animRef.current = requestAnimationFrame(tick); }, 500);
-    return () => {
-      clearTimeout(delay);
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
-  }, [pct]);
-
-  const [dash, setDash] = useState(100);
-  useEffect(() => {
-    const id = setTimeout(() => setDash(100 - pct * 100), 500);
-    return () => clearTimeout(id);
-  }, [pct]);
-
-  const isNearGoal = pct > 0.8;
-  const tipX0 = sx, tipY0 = sy;
-
-  // Label positions for 0 and GOAL below the arc ends
-  const zeroLabelPt = pt(START,   R + SW / 2 + 20);
-  const goalLabelPt = pt(START + SWEEP, R + SW / 2 + 20);
+  // 0-label (left end) and goal-label (right end) – positioned just below flat edge
+  const labelY = cyPos + 22;
+  const labelXLeft  = size / 2 - outerR - 4;
+  const labelXRight = size / 2 + outerR + 4;
 
   return (
-    <svg width={size} height={size} style={{ overflow: "visible" }} className={isNearGoal ? "arc-glow" : ""}>
-      <defs>
-        {/* Fill gradient: deep indigo → violet */}
-        <linearGradient id="arcFill" x1={sx} y1={sy} x2={ex} y2={ey} gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor="#4338CA"/>
-          <stop offset="55%"  stopColor="#6366F1"/>
-          <stop offset="100%" stopColor="#818CF8"/>
-        </linearGradient>
+    <div
+      className={pct > 0.8 ? "arc-glow" : undefined}
+      style={{ width: size, height: size, position: "relative" }}
+    >
+      <RadialBarChart
+        width={size}
+        height={size}
+        data={chartData}
+        cx={size / 2}
+        cy={cyPos}
+        startAngle={180}
+        endAngle={0}
+        innerRadius={innerR}
+        outerRadius={outerR}
+      >
+        <defs>
+          <linearGradient id="gaugeGrad" x1="1" y1="0" x2="0" y2="0">
+            <stop offset="0%"   stopColor="#818CF8"/>
+            <stop offset="100%" stopColor="#4338CA"/>
+          </linearGradient>
+        </defs>
+        <RadialBar dataKey="progress"  stackId="a" cornerRadius={5} fill="url(#gaugeGrad)" stroke="none"/>
+        <RadialBar dataKey="remaining" stackId="a" cornerRadius={5} fill="#D6E2F5"         stroke="none"/>
+      </RadialBarChart>
 
-        {/* Outer drop-shadow on track for depth */}
-        <filter id="trackShadow" x="-15%" y="-15%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="3" stdDeviation="4"
-            floodColor="rgba(67,56,202,0.12)" floodOpacity="1"/>
-        </filter>
+      {/* End-point labels: 0 ── goal */}
+      <svg
+        style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}
+        width={size} height={size}
+      >
+        <text x={labelXLeft}  y={labelY} textAnchor="end"   dominantBaseline="middle"
+          fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">0</text>
+        <text x={labelXRight} y={labelY} textAnchor="start" dominantBaseline="middle"
+          fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">{total}</text>
 
-        {/* Soft glow behind fill arc */}
-        <filter id="fillGlow" x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="5" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-
-        {/* Tip glowing dot */}
-        <filter id="tipGlow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="6" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-
-      {/* ── Layer 1: track shadow (wide, blurred) ─────────────────────────── */}
-      <path d={trackD} fill="none"
-        stroke="rgba(67,56,202,0.07)" strokeWidth={SW + 10} strokeLinecap="round"
-        filter="url(#trackShadow)"/>
-
-      {/* ── Layer 2: main track — solid, clearly visible on white ─────────── */}
-      <path d={trackD} fill="none"
-        stroke="#D6E2F5" strokeWidth={SW} strokeLinecap="round"/>
-
-      {/* ── Layer 3: inner track groove (subtle concave feel) ─────────────── */}
-      <path d={trackD} fill="none"
-        stroke="#C2D3EE" strokeWidth={SW - 14} strokeLinecap="round" opacity="0.7"/>
-
-      {/* ── Layer 4: tick marks (drawn before fill so fill can cover them) ── */}
-      {ticks.map(({ inner, outer, isMajor }, i) => (
-        <line key={i}
-          x1={inner[0]} y1={inner[1]} x2={outer[0]} y2={outer[1]}
-          stroke={isMajor ? "#9AB4D8" : "#BBCFE8"}
-          strokeWidth={isMajor ? 2.5 : 1.5}
-          strokeLinecap="round"
+        {/* Thin separator line between the two labels (the flat edge of the semicircle) */}
+        <line
+          x1={size / 2 - outerR + 6} y1={cyPos}
+          x2={size / 2 + outerR - 6} y2={cyPos}
+          stroke="#D6E2F5" strokeWidth={2}
         />
-      ))}
-
-      {/* ── Layer 5: fill glow halo ───────────────────────────────────────── */}
-      {fillD && (
-        <path d={fillD} fill="none" stroke="url(#arcFill)"
-          strokeWidth={SW + 18} strokeLinecap="round"
-          pathLength="100" strokeDasharray="100" strokeDashoffset={dash}
-          opacity="0.20" filter="url(#fillGlow)"
-          style={{ transition: `stroke-dashoffset ${pct < 0.15 ? 2 : 2.2}s ${pct < 0.15 ? "linear" : "cubic-bezier(0.4,0,0.2,1)"}` }}
-        />
-      )}
-
-      {/* ── Layer 6: fill arc main ────────────────────────────────────────── */}
-      {fillD && (
-        <path d={fillD} fill="none" stroke="url(#arcFill)"
-          strokeWidth={SW} strokeLinecap="round"
-          pathLength="100" strokeDasharray="100" strokeDashoffset={dash}
-          style={{ transition: `stroke-dashoffset ${pct < 0.15 ? 2 : 2.2}s ${pct < 0.15 ? "linear" : "cubic-bezier(0.4,0,0.2,1)"}` }}
-        />
-      )}
-
-      {/* ── Layer 7: milestone gap lines — ON TOP of fill (key fix!) ─────── */}
-      {milestones.map(({ inner, outer }, i) => (
-        <line key={i}
-          x1={inner[0]} y1={inner[1]} x2={outer[0]} y2={outer[1]}
-          stroke="white" strokeWidth={3.5} strokeLinecap="round"/>
-      ))}
-
-      {/* ── Layer 8: start cap — pulsing ring when idle ───────────────────── */}
-      {!fillD && (
-        <circle cx={sx} cy={sy} r={SW / 2}
-          fill="none" stroke="#6366F1" strokeWidth={1.5}
-          className="gauge-idle-ring"/>
-      )}
-      <circle cx={sx} cy={sy} r={SW / 2}
-        fill={fillD ? "#4338CA" : "#C2D3EE"}
-        stroke={fillD ? "rgba(255,255,255,0.3)" : "#A8C0E0"}
-        strokeWidth={1.5}
-        className={!fillD ? "gauge-idle-cap" : undefined}
-      />
-
-      {/* ── Layer 9: end cap (goal marker) ───────────────────────────────── */}
-      <circle cx={ex} cy={ey} r={SW / 2 - 3}
-        fill="#D6E2F5" stroke="#A8C0E0" strokeWidth={1.5}/>
-      <circle cx={ex} cy={ey} r={4} fill="#9AB4D8"/>
-
-      {/* ── Layer 10: animated tip ────────────────────────────────────────── */}
-      {pct > 0.004 && <>
-        <circle ref={haloRef} cx={tipX0} cy={tipY0} r={SW / 2 + 9}
-          fill="none" stroke="#6366F1" strokeWidth={2.5} opacity={0.25}/>
-        <circle ref={tipRef} cx={tipX0} cy={tipY0} r={SW / 2 + 2}
-          fill="url(#arcFill)" filter="url(#tipGlow)"/>
-        <circle ref={shineRef} cx={tipX0} cy={tipY0} r={SW / 2 - 5}
-          fill="rgba(255,255,255,0.32)" style={{ pointerEvents: "none" }}/>
-      </>}
-
-      {/* ── Layer 11: arc end labels (0 and goal value) ──────────────────── */}
-      <text x={zeroLabelPt[0]} y={zeroLabelPt[1]}
-        textAnchor="middle" dominantBaseline="middle"
-        fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">
-        0
-      </text>
-      <text x={goalLabelPt[0]} y={goalLabelPt[1]}
-        textAnchor="middle" dominantBaseline="middle"
-        fontSize={11} fontWeight={700} fill="#8096B4" fontFamily="Inter, system-ui, sans-serif">
-        {total}
-      </text>
-    </svg>
+      </svg>
+    </div>
   );
 }
+
+
 
 // ─── MOTIVATIONAL LINE ─────────────────────────────────────────────────────
 function MotivLine() {
@@ -936,11 +778,11 @@ export default function App() {
           </div>
 
           <div style={{ position: "relative", width: 360, height: 360, flexShrink: 0 }}>
-            <ArcGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} size={360}/>
+            <RadialGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} size={360}/>
 
             <div aria-live="polite" aria-atomic="true" style={{
               position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", paddingBottom: 48, pointerEvents: "none",
+              alignItems: "center", justifyContent: "center", paddingBottom: 80, pointerEvents: "none",
             }}>
               {PRE_Q2 ? (
                 <>
