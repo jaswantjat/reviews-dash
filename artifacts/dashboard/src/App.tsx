@@ -561,7 +561,7 @@ export default function App() {
     ? TOTAL - POSITIVE
     : _rawNegative;
   const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
-  const PRE_Q2        = data ? new Date() < new Date(data.trimesterStart) : false;
+  const PRE_Q2        = data ? (() => { const t = new Date(); t.setHours(0,0,0,0); const s = new Date(data.trimesterStart); s.setHours(0,0,0,0); return t < s; })() : false;
   const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
   const START_LABEL   = data ? formatStartDate(data.trimesterStart) : "";
   // Pace in reviews per WEEK (weekly targets are more actionable for a team)
