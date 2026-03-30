@@ -41,7 +41,7 @@ if (process.env.NODE_ENV === "production") {
     : path.resolve(__dirname, "..", "..", "..", "dashboard", "dist", "public");
 
   app.use(express.static(frontendPath));
-  app.get("*", (_req, res) => {
+  app.get("/{*splat}", (_req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });
 }
