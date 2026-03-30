@@ -584,6 +584,7 @@ export default function App() {
 
   const cntTotal = useCountUp(TOTAL, 1600);
   const cntPos   = useCountUp(POSITIVE, 2000);
+  const cntNeg   = useCountUp(NEGATIVE, 2000);
 
   useEffect(() => {
     if (reviewList.length === 0) return;
@@ -707,7 +708,7 @@ export default function App() {
                 labelColor="var(--green-mid)" valColor="var(--green)"
                 subtext="4 – 5 estrellas" subtextColor="#34D399"
               />
-              <StatChip label="Negativas" value={NEGATIVE}
+              <StatChip label="Negativas" value={cntNeg.toLocaleString()}
                 bg="var(--red-bg)" border="var(--red-border)"
                 labelColor="var(--red-mid)" valColor="var(--red)"
                 subtext="1 – 2 estrellas" subtextColor="#FCA5A5"
