@@ -71,21 +71,41 @@ export async function fetchAndStoreNewReviews(
   }
 }
 
+function msUntilNextPollHour(): number {
+  const hourUtc = CONFIG.polling.pollHourUtc;
+  const now = new Date();
+  const next = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hourUtc, 0, 0, 0),
+  );
+  if (next.getTime() <= now.getTime()) {
+    next.setUTCDate(next.getUTCDate() + 1);
+  }
+  return next.getTime() - now.getTime();
+}
+
 export function startPolling(
   buildDashboard: () => Promise<any>,
 ): void {
-  const intervalMs = CONFIG.polling.reviewsIntervalMs;
-  logger.info({ intervalMs }, "Background polling started");
+  const hourUtc = CONFIG.polling.pollHourUtc;
+  const delayMs = msUntilNextPollHour();
+  logger.info(
+    { pollHourUtc: hourUtc, firstRunInMs: delayMs },
+    "Daily polling scheduled",
+  );
 
-  setInterval(async () => {
-    logger.info("Background poll: fetching new reviews");
+  const runAndReschedule = async () => {
+    logger.info("Daily poll: fetching new reviews");
     try {
       await fetchAndStoreNewReviews(2, buildDashboard);
-      logger.info("Background poll: complete");
+      logger.info("Daily poll: complete");
     } catch (err) {
-      logger.error({ err }, "Background poll failed");
+      logger.error({ err }, "Daily poll failed");
     }
-  }, intervalMs);
+    // Schedule next run in 24 hours
+    setTimeout(runAndReschedule, 24 * 60 * 60 * 1000);
+  };
+
+  setTimeout(runAndReschedule, delayMs);
 }
 
 // Ping the database every 12 hours to prevent Supabase free-tier deactivation

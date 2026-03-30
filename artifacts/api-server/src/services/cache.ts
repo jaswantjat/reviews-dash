@@ -70,7 +70,7 @@ export function setReviewsCache(data: DashboardSnapshot) {
 }
 
 export function isReviewCacheStale() {
-  return Date.now() - lastReviewFetch > CONFIG.polling.reviewsIntervalMs;
+  return Date.now() - lastReviewFetch > 24 * 60 * 60 * 1000;
 }
 
 export function subscribeToReviewsCache(listener: DashboardListener) {

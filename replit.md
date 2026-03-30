@@ -44,7 +44,7 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 ## Architecture
 
 ### Data Flow
-1. **Poll**: Backend polls SearchAPI → Apify (cascade) every 45 min via `startPolling()` in `poller.ts`
+1. **Poll**: Backend polls SearchAPI → Apify (cascade) once daily at 06:00 UTC via `startPolling()` in `poller.ts`
 2. **Store**: New reviews upserted into Supabase `reviews` table via `upsertReviews()`; place info into `place_meta` via `upsertPlaceMeta()`
 3. **Cache + broadcast**: `setReviewsCache(data)` updates in-memory cache and calls `broadcast()` which pushes to all connected SSE clients via a `Set<DashboardListener>` pub/sub
 4. **Serve**: SSE stream (`/api/dashboard/stream`) sends current snapshot on connect, then pushes updates as they arrive. REST (`/api/dashboard`) returns cached snapshot for fast first paint and SSE fallback
@@ -153,6 +153,7 @@ Breakdown:
 | `SEARCHAPI_KEY` | Replit env var + hardcoded fallback in config.ts | `2BcSHdpwMRps8xR611yFUaPW` |
 | `APIFY_API_KEY` | Replit env var (shared) + hardcoded fallback in config.ts | `apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7` |
 | `PLACE_ID_ELTEX` | Hardcoded fallback in services/reviews.ts | `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
+| `POLL_HOUR_UTC` | Railway env var (optional) | Hour (0–23) to run daily poll; default `6` (06:00 UTC) |
 
 ## Trimester Config
 
@@ -201,6 +202,17 @@ Installed at `.claude/skills/gstack/`. Binary: `.claude/skills/gstack/browse/dis
 Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (0.14.0.0 available).
 
 ## Recent Changes
+
+### 2026-03-30 — Daily poll schedule + Railway prep
+
+**Polling changed from every 45 min → once daily at 06:00 UTC:**
+- `startPolling()` in `poller.ts` now uses `setTimeout` + reschedule (not `setInterval`) to fire at the next 06:00 UTC wall-clock time, then every 24 h thereafter
+- `CONFIG.polling.reviewsIntervalMs` removed; replaced with `CONFIG.polling.pollHourUtc` (default `6`, overrideable via `POLL_HOUR_UTC` env var on Railway)
+- `isReviewCacheStale()` in `cache.ts` threshold updated from the old interval to 24 h
+
+**Railway deployment ready:**
+- `railway.json` and `nixpacks.toml` already in place; no changes needed
+- Set `POLL_HOUR_UTC=6` in Railway env vars if you want a different hour
 
 ### 2026-03-30 — Full QA audit + bug fixes
 

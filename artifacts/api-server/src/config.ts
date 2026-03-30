@@ -26,10 +26,9 @@ export const CONFIG = {
     apify: { apiKey: process.env.APIFY_API_KEY || "apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7" },
   },
   polling: {
-    // Poll external APIs every 45 minutes to stay within API quotas.
-    // The SSE stream gives the browser real-time pushes; this interval only
-    // controls how often we ask the external review providers for new data.
-    reviewsIntervalMs: getPositiveIntEnv("REVIEWS_POLL_INTERVAL_MS", 45 * 60 * 1000),
+    // Fetch new reviews once per day at this UTC hour (default: 06:00 UTC).
+    // Override with POLL_HOUR_UTC env var (0–23).
+    pollHourUtc: getPositiveIntEnv("POLL_HOUR_UTC", 6),
     streamHeartbeatMs: getPositiveIntEnv("DASHBOARD_STREAM_HEARTBEAT_MS", 45 * 60 * 1000),
   },
 };
