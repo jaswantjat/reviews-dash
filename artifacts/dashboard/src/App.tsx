@@ -333,14 +333,18 @@ function ProgressBar({ pct, height = 8 }: { pct: number; height?: number }) {
 }
 
 // ─── RADIAL GAUGE — Recharts stacked RadialBarChart (half-circle) ──────────
-// Two stacked arcs: filled (progress) + remaining track.
-// The number/label overlay is rendered by the parent's absolutely-positioned div.
+// innerRadius=80, outerRadius=158 → 78 px ring (bold, visible at any progress).
+// dimmed=true (PRE_Q2): renders a single full-arc in a muted indigo so the
+// gauge is always present and legible, even when progress = 0.
 //
-function RadialGauge({ value, total, size = 360 }: { value: number; total: number; size?: number }) {
+function RadialGauge({
+  value, total, dimmed = false, size = 360,
+}: { value: number; total: number; dimmed?: boolean; size?: number }) {
   const progress  = Math.max(0, Math.min(value, total));
   const remaining = Math.max(0, total - progress);
 
-  const chartData = [{ progress, remaining }];
+  // dimmed mode: single full-arc entry so the ring always shows
+  const chartData = dimmed ? [{ full: total }] : [{ progress, remaining }];
 
   return (
     <div style={{ width: size, height: size }} aria-hidden="true">
@@ -348,7 +352,7 @@ function RadialGauge({ value, total, size = 360 }: { value: number; total: numbe
         <RadialBarChart
           data={chartData}
           endAngle={180}
-          innerRadius={110}
+          innerRadius={80}
           outerRadius={158}
           startAngle={0}
           cx="50%"
@@ -363,8 +367,8 @@ function RadialGauge({ value, total, size = 360 }: { value: number; total: numbe
                   return (
                     <g>
                       <text
-                        x={cx - (total >= 100 ? 16 : 8)}
-                        y={cy + 22}
+                        x={cx - (total >= 100 ? 18 : 10)}
+                        y={cy + 24}
                         textAnchor="end"
                         fontSize={11}
                         fontWeight={700}
@@ -374,8 +378,8 @@ function RadialGauge({ value, total, size = 360 }: { value: number; total: numbe
                         0
                       </text>
                       <text
-                        x={cx + (total >= 100 ? 16 : 8)}
-                        y={cy + 22}
+                        x={cx + (total >= 100 ? 18 : 10)}
+                        y={cy + 24}
                         textAnchor="start"
                         fontSize={11}
                         fontWeight={700}
@@ -391,22 +395,36 @@ function RadialGauge({ value, total, size = 360 }: { value: number; total: numbe
               }}
             />
           </PolarRadiusAxis>
-          <RadialBar
-            cornerRadius={6}
-            dataKey="progress"
-            stackId="gauge"
-            fill="var(--accent)"
-            stroke="transparent"
-            strokeWidth={2}
-          />
-          <RadialBar
-            cornerRadius={6}
-            dataKey="remaining"
-            stackId="gauge"
-            fill="#D6E2F5"
-            stroke="transparent"
-            strokeWidth={2}
-          />
+
+          {dimmed ? (
+            /* PRE_Q2 — full muted indigo ring (shows ring is ready, not yet started) */
+            <RadialBar
+              cornerRadius={10}
+              dataKey="full"
+              stackId="gauge"
+              fill="rgba(99,102,241,0.18)"
+              stroke="transparent"
+            />
+          ) : (
+            <>
+              {/* Filled progress arc */}
+              <RadialBar
+                cornerRadius={10}
+                dataKey="progress"
+                stackId="gauge"
+                fill="var(--accent)"
+                stroke="transparent"
+              />
+              {/* Remaining track */}
+              <RadialBar
+                cornerRadius={10}
+                dataKey="remaining"
+                stackId="gauge"
+                fill="rgba(99,102,241,0.12)"
+                stroke="transparent"
+              />
+            </>
+          )}
         </RadialBarChart>
       </ResponsiveContainer>
     </div>
@@ -801,13 +819,14 @@ export default function App() {
 
             {/* Gauge shifted up so the arc aligns to the visible clip area */}
             <div style={{ position: "absolute", top: -80, left: 0 }}>
-              <RadialGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} size={360}/>
+              <RadialGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} dimmed={PRE_Q2} size={360}/>
             </div>
 
-            {/* Text overlay — keeps main KPI inside the arc's interior */}
+            {/* Text overlay — only the headline KPI number (+ tiny super-label in PRE_Q2).
+                 Sub-labels live BELOW the clip container to avoid overlapping axis tick text. */}
             <div aria-live="polite" aria-atomic="true" style={{
               position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", paddingBottom: 40, pointerEvents: "none",
+              alignItems: "center", justifyContent: "center", paddingTop: 28, pointerEvents: "none",
             }}>
               {PRE_Q2 ? (
                 <>
@@ -823,38 +842,36 @@ export default function App() {
                   }}>
                     {DAYS_TO_START}
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 6 }}>
-                    días para el inicio · objetivo {GOAL}
-                  </div>
                 </>
               ) : (
-                <>
-                  <div className="count-in" style={{
-                    fontSize: 96, fontWeight: 900, letterSpacing: "-5px", lineHeight: 1,
-                    color: "var(--text-1)", textShadow: "0 2px 24px rgba(0,0,0,0.07)",
-                  }}>
-                    {PROGRESS}
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 8 }}>
-                    de {GOAL} objetivo
-                  </div>
-                </>
+                <div className="count-in" style={{
+                  fontSize: 96, fontWeight: 900, letterSpacing: "-5px", lineHeight: 1,
+                  color: "var(--text-1)", textShadow: "0 2px 24px rgba(0,0,0,0.07)",
+                }}>
+                  {PROGRESS}
+                </div>
               )}
             </div>
 
           </div>
 
-          {/* Badge below the gauge — only in pre-Q2 mode */}
-          {PRE_Q2 && (
-            <div style={{
-              marginTop: 8,
-              fontSize: 11, fontWeight: 600, color: "var(--accent)",
-              background: "var(--accent-light)", borderRadius: 8, padding: "5px 14px",
-              border: "1px dashed rgba(67,56,202,0.28)",
-            }}>
-              El marcador se activará el {START_LABEL}
+          {/* Sub-label + badge below the clip — safely clear of the "0 / 270" axis ticks */}
+          <div style={{ marginTop: 6, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em" }}>
+              {PRE_Q2
+                ? `días para el inicio · objetivo ${GOAL}`
+                : `de ${GOAL} objetivo`}
             </div>
-          )}
+            {PRE_Q2 && (
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: "var(--accent)",
+                background: "var(--accent-light)", borderRadius: 8, padding: "5px 14px",
+                border: "1px dashed rgba(67,56,202,0.28)",
+              }}>
+                El marcador se activará el {START_LABEL}
+              </div>
+            )}
+          </div>
 
           <div style={{
             marginTop: PRE_Q2 ? 14 : 10, marginBottom: 12,
