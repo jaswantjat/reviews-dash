@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Label, PolarRadiusAxis, RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 
 // ─── HTML SANITISER ────────────────────────────────────────────────────────
 function stripHtml(html: string): string {
@@ -332,102 +331,85 @@ function ProgressBar({ pct, height = 8 }: { pct: number; height?: number }) {
   );
 }
 
-// ─── RADIAL GAUGE — Recharts stacked RadialBarChart (half-circle) ──────────
-// innerRadius=80, outerRadius=158 → 78 px ring (bold, visible at any progress).
-// dimmed=true (PRE_Q2): renders a single full-arc in a muted indigo so the
-// gauge is always present and legible, even when progress = 0.
+// ─── RADIAL GAUGE — Pure SVG half-circle speedometer ───────────────────────
+// Draws a top-half semicircle track + a progress arc overlay.
+// dimmed=true (PRE_Q2): full track in muted indigo, no progress fill.
 //
 function RadialGauge({
   value, total, dimmed = false, size = 360,
 }: { value: number; total: number; dimmed?: boolean; size?: number }) {
-  const progress  = Math.max(0, Math.min(value, total));
-  const remaining = Math.max(0, total - progress);
+  const cx  = size / 2;
+  const cy  = Math.round(size * 0.5);         // arc-base y (center of the semicircle)
+  const R   = Math.round(size * 0.361);        // centerline radius (~130 for size=360)
+  const sw  = Math.round(size * 0.089);        // stroke width / ring thickness (~32)
 
-  // dimmed mode: single full-arc entry so the ring always shows
-  const chartData = dimmed ? [{ full: total }] : [{ progress, remaining }];
+  const pct = total > 0 ? Math.min(Math.max(value, 0), total) / total : 0;
+
+  // Top-half semicircle: from left end (cx-R, cy) clockwise to right end (cx+R, cy)
+  // SVG sweep-flag=1 means clockwise → goes through the top ✓
+  const trackD = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`;
+
+  // Progress arc: starts at left end, sweeps clockwise by pct×180°
+  // Standard math: θ = π(1−pct) measures from east (right), SVG y-axis is flipped
+  let progressD: string | null = null;
+  if (!dimmed && pct > 0) {
+    const pctC  = Math.min(pct, 0.9999);       // avoid degenerate 180° arc
+    const theta = Math.PI * (1 - pctC);
+    const epx   = cx + R * Math.cos(theta);
+    const epy   = cy - R * Math.sin(theta);    // above cy → correct for top half
+    progressD = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${epx} ${epy}`;
+  }
+
+  const svgH   = cy + Math.round(sw / 2) + 22;
+  const labelY = cy + Math.round(sw / 2) + 16;
 
   return (
-    <div style={{ width: size, height: size }} aria-hidden="true">
-      <ResponsiveContainer width="100%" height="100%">
-        <RadialBarChart
-          data={chartData}
-          endAngle={180}
-          innerRadius={80}
-          outerRadius={158}
-          startAngle={0}
-          cx="50%"
-          cy="68%"
-        >
-          <PolarRadiusAxis axisLine={false} tick={false} tickLine={false}>
-            <Label
-              content={({ viewBox }) => {
-                if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                  const cx = viewBox.cx as number;
-                  const cy = viewBox.cy as number;
-                  return (
-                    <g>
-                      <text
-                        x={cx - (total >= 100 ? 18 : 10)}
-                        y={cy + 24}
-                        textAnchor="end"
-                        fontSize={11}
-                        fontWeight={700}
-                        fill="var(--text-3)"
-                        fontFamily="Inter, system-ui, sans-serif"
-                      >
-                        0
-                      </text>
-                      <text
-                        x={cx + (total >= 100 ? 18 : 10)}
-                        y={cy + 24}
-                        textAnchor="start"
-                        fontSize={11}
-                        fontWeight={700}
-                        fill="var(--text-3)"
-                        fontFamily="Inter, system-ui, sans-serif"
-                      >
-                        {total}
-                      </text>
-                    </g>
-                  );
-                }
-                return null;
-              }}
-            />
-          </PolarRadiusAxis>
+    <svg
+      width={size}
+      height={svgH}
+      viewBox={`0 0 ${size} ${svgH}`}
+      aria-hidden="true"
+    >
+      {/* Background track */}
+      <path
+        d={trackD}
+        fill="none"
+        stroke={dimmed ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.12)"}
+        strokeWidth={sw}
+        strokeLinecap="round"
+      />
 
-          {dimmed ? (
-            /* PRE_Q2 — full muted indigo ring (shows ring is ready, not yet started) */
-            <RadialBar
-              cornerRadius={10}
-              dataKey="full"
-              stackId="gauge"
-              fill="rgba(99,102,241,0.18)"
-              stroke="transparent"
-            />
-          ) : (
-            <>
-              {/* Filled progress arc */}
-              <RadialBar
-                cornerRadius={10}
-                dataKey="progress"
-                stackId="gauge"
-                fill="var(--accent)"
-                stroke="transparent"
-              />
-              {/* Remaining track */}
-              <RadialBar
-                cornerRadius={10}
-                dataKey="remaining"
-                stackId="gauge"
-                fill="rgba(99,102,241,0.12)"
-                stroke="transparent"
-              />
-            </>
-          )}
-        </RadialBarChart>
-      </ResponsiveContainer>
-    </div>
+      {/* Progress fill */}
+      {!dimmed && progressD && (
+        <path
+          d={progressD}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={sw}
+          strokeLinecap="round"
+        />
+      )}
+
+      {/* Min / max labels */}
+      <text
+        x={cx - R}
+        y={labelY}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={700}
+        fill="var(--text-3)"
+        fontFamily="Inter, system-ui, sans-serif"
+      >0</text>
+      <text
+        x={cx + R}
+        y={labelY}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={700}
+        fill="var(--text-3)"
+        fontFamily="Inter, system-ui, sans-serif"
+      >{total}</text>
+    </svg>
   );
 }
 
@@ -812,21 +794,20 @@ export default function App() {
             )}
           </div>
 
-          {/* Clip wrapper — hides the ~80 px dead space at top and ~40 px at bottom
-               that the RadialBarChart (cy=68 %) creates in its 360×360 canvas.
-               Height 220 px shows the arc (y 87–245) + axis labels (y ≈ 267) cleanly. */}
-          <div style={{ position: "relative", width: 360, height: 220, flexShrink: 0, overflow: "hidden" }}>
+          {/* Gauge wrapper — SVG is naturally sized, no clipping hack needed */}
+          <div style={{ position: "relative", width: 360, flexShrink: 0 }}>
 
-            {/* Gauge shifted up so the arc aligns to the visible clip area */}
-            <div style={{ position: "absolute", top: -80, left: 0 }}>
-              <RadialGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} dimmed={PRE_Q2} size={360}/>
-            </div>
+            <RadialGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} dimmed={PRE_Q2} size={360}/>
 
-            {/* Text overlay — only the headline KPI number (+ tiny super-label in PRE_Q2).
-                 Sub-labels live BELOW the clip container to avoid overlapping axis tick text. */}
+            {/* Text overlay centred inside the arc bowl */}
             <div aria-live="polite" aria-atomic="true" style={{
-              position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", paddingTop: 28, pointerEvents: "none",
+              position: "absolute",
+              top: 0, left: 0, right: 0,
+              /* arc center is at cy = size*0.5 = 180 px; place text just above it */
+              bottom: 38,          /* leave space for labels below cy */
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "flex-end",
+              paddingBottom: 8, pointerEvents: "none",
             }}>
               {PRE_Q2 ? (
                 <>
