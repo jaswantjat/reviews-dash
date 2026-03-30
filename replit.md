@@ -147,17 +147,17 @@ Breakdown:
 
 Place identifier: `PLACE_ID_ELTEX` = `ChIJhTCaeeajpBIR4O9YniCqiJ0` (hardcoded fallback in `reviews.ts`)
 
-**Status as of 2026-03-30**: All 4 keys stored as hardcoded fallbacks in `config.ts` and as env var names in `.env.example`. Cascade auto-skips any key that returns 429/403.
+**Status as of 2026-03-30**: All 4 keys stored as Replit env vars. No hardcoded fallbacks in code. Cascade auto-skips any key that returns 429/403.
 
 ## Environment Variables
 
 | Key | Where set | Value |
 |-----|-----------|-------|
 | `SUPABASE_PAT` | Replit env var | Supabase Personal Access Token |
-| `SEARCHAPI_KEY` | Hardcoded fallback in config.ts | `2BcSHdpwMRps8xR611yFUaPW` |
-| `SEARCHAPI_KEY_BACKUP` | Hardcoded fallback in config.ts | `MCi58AMSXWC593ykzikBAaZC` |
-| `APIFY_API_KEY` | Hardcoded fallback in config.ts | `apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7` |
-| `APIFY_API_KEY_BACKUP` | Hardcoded fallback in config.ts | `apify_api_oRnOWsTuQg0caGqt4VRpBB2U8pEcjq0m1Quk` |
+| `SEARCHAPI_KEY` | Replit env var | Primary SearchAPI key |
+| `SEARCHAPI_KEY_BACKUP` | Replit env var | Backup SearchAPI key |
+| `APIFY_API_KEY` | Replit env var | Primary Apify key |
+| `APIFY_API_KEY_BACKUP` | Replit env var | Backup Apify key |
 | `PLACE_ID_ELTEX` | Hardcoded fallback in services/reviews.ts | `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
 | `POLL_HOUR_UTC` | Railway env var (optional) | Hour (0–23) to run daily poll; default `6` (06:00 UTC) |
 
