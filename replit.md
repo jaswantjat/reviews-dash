@@ -211,6 +211,37 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 
 ## Recent Changes
 
+### 2026-03-30 — Railway production deployment fixed & live
+
+**Bug fixed — frontend "not found" on Railway:**
+- `app.ts` was resolving the static files path with 3 `..` levels instead of 2
+- Old (broken): `path.resolve(__dirname, "..", "..", "..", "dashboard", "dist", "public")` → `/app/dashboard/dist/public` (wrong)
+- Fixed: `path.resolve(__dirname, "..", "..", "dashboard", "dist", "public")` → `/app/artifacts/dashboard/dist/public` (correct)
+- Deployed via Railway CLI (`railway up --service reviews-dash`)
+- All endpoints verified live: `/` → 200, `/api/healthz` → 200, `/api/dashboard` → 200
+
+**Production URL**: https://reviews-dash-production.up.railway.app
+
+**Credentials stored**:
+- `RAILWAY_TOKEN` — Railway project token (project: Review dashboard, env: production)
+- `GITHUB_TOKEN` — GitHub PAT for `jaswantjat/reviews-dash`
+
+**Railway env vars set (via CLI)**:
+- `SEARCHAPI_KEY`, `SEARCHAPI_KEY_BACKUP`, `APIFY_API_KEY`, `APIFY_API_KEY_BACKUP` — polling cascade
+- `SUPABASE_PAT` — Supabase management API
+- `POLL_HOUR_UTC` — daily poll hour
+- `NODE_ENV=production` — enables static file serving
+
+**Final first-principles audit (2026-03-30):**
+- `GET /` → 200 ✅ (frontend loads)
+- `GET /api/healthz` → 200 ✅
+- `GET /api/dashboard` → 200 ✅ (all numbers match: 898 total, 4.6 avg, 862 pos, 109 neg, 976 stored)
+- SSE stream → fires `event:dashboard` immediately on connect ✅
+- PRE_Q2 mode correct (Q2 starts 2026-04-01, netScore=0) ✅
+- Daily polling scheduled for 06:00 UTC with all 4 cascade keys ✅
+
+**Note on GitHub push**: Replit restricts direct `git push` from the main agent. To keep Railway in sync with GitHub, push manually or use `railway up` from Replit when changes are made.
+
 ### 2026-03-30 — Daily poll schedule + Railway prep
 
 **Polling changed from every 45 min → once daily at 06:00 UTC:**

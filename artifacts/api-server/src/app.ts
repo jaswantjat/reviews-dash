@@ -38,7 +38,7 @@ app.use("/api", router);
 if (process.env.NODE_ENV === "production") {
   const frontendPath = process.env.FRONTEND_PATH
     ? path.resolve(process.env.FRONTEND_PATH)
-    : path.resolve(__dirname, "..", "..", "..", "dashboard", "dist", "public");
+    : path.resolve(__dirname, "..", "..", "dashboard", "dist", "public");
 
   app.use(express.static(frontendPath));
   app.get("/{*splat}", (_req, res) => {
