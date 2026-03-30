@@ -22,8 +22,18 @@ export const CONFIG = {
     },
   ],
   providers: {
-    searchapi: { apiKey: process.env.SEARCHAPI_KEY || "2BcSHdpwMRps8xR611yFUaPW" },
-    apify: { apiKey: process.env.APIFY_API_KEY || "apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7" },
+    searchapi: {
+      apiKeys: [
+        process.env.SEARCHAPI_KEY || "2BcSHdpwMRps8xR611yFUaPW",
+        process.env.SEARCHAPI_KEY_BACKUP || "MCi58AMSXWC593ykzikBAaZC",
+      ],
+    },
+    apify: {
+      apiKeys: [
+        process.env.APIFY_API_KEY || "apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7",
+        process.env.APIFY_API_KEY_BACKUP || "apify_api_oRnOWsTuQg0caGqt4VRpBB2U8pEcjq0m1Quk",
+      ],
+    },
   },
   polling: {
     // Fetch new reviews once per day at this UTC hour (default: 06:00 UTC).

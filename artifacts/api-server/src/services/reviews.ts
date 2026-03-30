@@ -76,8 +76,8 @@ async function fetchPlaceInfoFromSearchAPI(
 async function fetchFromSearchAPI(
   googleMapsQuery: string,
   maxPages = 3,
+  key = CONFIG.providers.searchapi.apiKeys[0],
 ): Promise<LocationResult & { name: string }> {
-  const key = CONFIG.providers.searchapi.apiKey;
   if (!key) throw Object.assign(new Error("SEARCHAPI_KEY not set"), { status: 0 });
 
   // The google_maps_reviews engine requires place_id, not a text query.
@@ -172,8 +172,11 @@ async function fetchFromSearchAPI(
  * Uses the place_id URL format so the actor targets the exact listing.
  * Response is a flat array of review objects from the actor dataset.
  */
-async function fetchFromApify(_googleMapsQuery: string, maxReviews = 100): Promise<LocationResult & { name: string }> {
-  const key = CONFIG.providers.apify.apiKey;
+async function fetchFromApify(
+  _googleMapsQuery: string,
+  maxReviews = 100,
+  key = CONFIG.providers.apify.apiKeys[0],
+): Promise<LocationResult & { name: string }> {
   if (!key) throw Object.assign(new Error("APIFY_API_KEY not set"), { status: 0 });
 
   const placeId = process.env.PLACE_ID_ELTEX || "ChIJhTCaeeajpBIR4O9YniCqiJ0";
@@ -265,12 +268,20 @@ export async function fetchReviewsForLocation(
   googleMapsQuery: string,
   maxPages = 3,
 ): Promise<LocationResult> {
-  // Provider priority:
-  // 1. SearchAPI — 100 calls/month, fast (~1s per page)
-  // 2. Apify     — pay-per-use, reliable fallback (~60-90s per run)
+  // Provider priority: try each key for each provider before moving to the next.
+  // 1a. SearchAPI primary key   — 100 calls/month, fast (~1s per page)
+  // 1b. SearchAPI backup key    — same quota, separate account
+  // 2a. Apify primary key       — pay-per-use, reliable fallback (~60-90s per run)
+  // 2b. Apify backup key        — same behaviour, separate account
   const providers: Array<{ name: string; fn: () => Promise<LocationResult & { name: string }> }> = [
-    { name: "searchapi", fn: () => fetchFromSearchAPI(googleMapsQuery, maxPages) },
-    { name: "apify", fn: () => fetchFromApify(googleMapsQuery, maxPages * 33) },
+    ...CONFIG.providers.searchapi.apiKeys.map((key, i) => ({
+      name: `searchapi-key${i + 1}`,
+      fn: () => fetchFromSearchAPI(googleMapsQuery, maxPages, key),
+    })),
+    ...CONFIG.providers.apify.apiKeys.map((key, i) => ({
+      name: `apify-key${i + 1}`,
+      fn: () => fetchFromApify(googleMapsQuery, maxPages * 33, key),
+    })),
   ];
 
   for (const provider of providers) {

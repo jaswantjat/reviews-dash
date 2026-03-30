@@ -138,20 +138,26 @@ Breakdown:
 
 ## Provider Cascade
 
-| Priority | Provider | Quota | Key env var | Place identifier |
-|----------|----------|-------|-------------|-----------------|
-| 1 | SearchAPI | 100 calls/month | `SEARCHAPI_KEY` | `PLACE_ID_ELTEX` = `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
-| 2 | Apify | Pay-per-use (`compass/Google-Maps-Reviews-Scraper`) | `APIFY_API_KEY` | place_id URL format |
+| Priority | Label | Provider | Quota | Key env var |
+|----------|-------|----------|-------|-------------|
+| 1 | `searchapi-key1` | SearchAPI primary | 100 calls/month | `SEARCHAPI_KEY` |
+| 2 | `searchapi-key2` | SearchAPI backup  | 100 calls/month | `SEARCHAPI_KEY_BACKUP` |
+| 3 | `apify-key1`     | Apify primary     | Pay-per-use | `APIFY_API_KEY` |
+| 4 | `apify-key2`     | Apify backup      | Pay-per-use | `APIFY_API_KEY_BACKUP` |
 
-**Status as of 2026-03-30**: SearchAPI and Apify are active and working.
+Place identifier: `PLACE_ID_ELTEX` = `ChIJhTCaeeajpBIR4O9YniCqiJ0` (hardcoded fallback in `reviews.ts`)
+
+**Status as of 2026-03-30**: All 4 keys stored as hardcoded fallbacks in `config.ts` and as env var names in `.env.example`. Cascade auto-skips any key that returns 429/403.
 
 ## Environment Variables
 
 | Key | Where set | Value |
 |-----|-----------|-------|
 | `SUPABASE_PAT` | Replit env var | Supabase Personal Access Token |
-| `SEARCHAPI_KEY` | Replit env var + hardcoded fallback in config.ts | `2BcSHdpwMRps8xR611yFUaPW` |
-| `APIFY_API_KEY` | Replit env var (shared) + hardcoded fallback in config.ts | `apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7` |
+| `SEARCHAPI_KEY` | Hardcoded fallback in config.ts | `2BcSHdpwMRps8xR611yFUaPW` |
+| `SEARCHAPI_KEY_BACKUP` | Hardcoded fallback in config.ts | `MCi58AMSXWC593ykzikBAaZC` |
+| `APIFY_API_KEY` | Hardcoded fallback in config.ts | `apify_api_ijQwHpf6EaJleup32PTcgnZCzghs5F2wjHI7` |
+| `APIFY_API_KEY_BACKUP` | Hardcoded fallback in config.ts | `apify_api_oRnOWsTuQg0caGqt4VRpBB2U8pEcjq0m1Quk` |
 | `PLACE_ID_ELTEX` | Hardcoded fallback in services/reviews.ts | `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
 | `POLL_HOUR_UTC` | Railway env var (optional) | Hour (0–23) to run daily poll; default `6` (06:00 UTC) |
 
