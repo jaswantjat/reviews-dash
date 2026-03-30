@@ -30,6 +30,6 @@ export const CONFIG = {
     // The SSE stream gives the browser real-time pushes; this interval only
     // controls how often we ask the external review providers for new data.
     reviewsIntervalMs: getPositiveIntEnv("REVIEWS_POLL_INTERVAL_MS", 45 * 60 * 1000),
-    streamHeartbeatMs: getPositiveIntEnv("DASHBOARD_STREAM_HEARTBEAT_MS", 15 * 1000),
+    streamHeartbeatMs: getPositiveIntEnv("DASHBOARD_STREAM_HEARTBEAT_MS", 45 * 60 * 1000),
   },
 };
