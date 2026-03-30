@@ -774,11 +774,12 @@ export default function App() {
         <main id="main-content" style={{
           flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
-          padding: "28px 60px 36px", background: "var(--white)",
+          padding: "28px 60px 36px",
+          background: "radial-gradient(ellipse 480px 320px at 50% 38%, rgba(67,56,202,0.05) 0%, transparent 100%), var(--white)",
           overflow: "hidden", gap: 0,
         }}>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <div className="lbl" style={{ letterSpacing: "0.18em" }}>
               {PRE_Q2 ? `Cuenta atrás · ${Q.label}` : `Reseñas positivas · ${Q.label}`}
             </div>
@@ -793,48 +794,48 @@ export default function App() {
             )}
           </div>
 
-          <div style={{ position: "relative", width: 360, height: 360, flexShrink: 0 }}>
-            <RadialGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} size={360}/>
+          {/* Clip wrapper — hides the ~80 px dead space at top and ~40 px at bottom
+               that the RadialBarChart (cy=68 %) creates in its 360×360 canvas.
+               Height 220 px shows the arc (y 87–245) + axis labels (y ≈ 267) cleanly. */}
+          <div style={{ position: "relative", width: 360, height: 220, flexShrink: 0, overflow: "hidden" }}>
 
+            {/* Gauge shifted up so the arc aligns to the visible clip area */}
+            <div style={{ position: "absolute", top: -80, left: 0 }}>
+              <RadialGauge value={PRE_Q2 ? 0 : PROGRESS} total={GOAL} size={360}/>
+            </div>
+
+            {/* Text overlay — keeps main KPI inside the arc's interior */}
             <div aria-live="polite" aria-atomic="true" style={{
               position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", paddingBottom: 80, pointerEvents: "none",
+              alignItems: "center", justifyContent: "center", paddingBottom: 40, pointerEvents: "none",
             }}>
               {PRE_Q2 ? (
                 <>
                   <div style={{
-                    fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase",
+                    fontSize: 11, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase",
                     color: "var(--accent)", marginBottom: 4,
                   }}>
                     EMPIEZA EL {START_LABEL}
                   </div>
                   <div className="count-in" style={{
-                    fontSize: 96, fontWeight: 900, letterSpacing: "-5px", lineHeight: 1,
+                    fontSize: 88, fontWeight: 900, letterSpacing: "-4px", lineHeight: 1,
                     color: "var(--text-1)", textShadow: "0 2px 24px rgba(0,0,0,0.07)",
                   }}>
                     {DAYS_TO_START}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 6 }}>
                     días para el inicio · objetivo {GOAL}
-                  </div>
-                  <div style={{
-                    marginTop: 10,
-                    fontSize: 11, fontWeight: 600, color: "var(--accent)",
-                    background: "var(--accent-light)", borderRadius: 8, padding: "5px 12px",
-                    border: "1px dashed rgba(67,56,202,0.28)",
-                  }}>
-                    El marcador se activará el {START_LABEL}
                   </div>
                 </>
               ) : (
                 <>
                   <div className="count-in" style={{
-                    fontSize: 104, fontWeight: 900, letterSpacing: "-6px", lineHeight: 1,
+                    fontSize: 96, fontWeight: 900, letterSpacing: "-5px", lineHeight: 1,
                     color: "var(--text-1)", textShadow: "0 2px 24px rgba(0,0,0,0.07)",
                   }}>
                     {PROGRESS}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-3)", letterSpacing: "-0.01em", marginTop: 8 }}>
                     de {GOAL} objetivo
                   </div>
                 </>
@@ -843,9 +844,21 @@ export default function App() {
 
           </div>
 
+          {/* Badge below the gauge — only in pre-Q2 mode */}
+          {PRE_Q2 && (
+            <div style={{
+              marginTop: 8,
+              fontSize: 11, fontWeight: 600, color: "var(--accent)",
+              background: "var(--accent-light)", borderRadius: 8, padding: "5px 14px",
+              border: "1px dashed rgba(67,56,202,0.28)",
+            }}>
+              El marcador se activará el {START_LABEL}
+            </div>
+          )}
+
           <div style={{
-            marginTop: 20, marginBottom: 14,
-            fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em",
+            marginTop: PRE_Q2 ? 14 : 10, marginBottom: 12,
+            fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em",
             color: PRE_Q2 ? "var(--accent)" : remaining > 0 ? "var(--text-2)" : "var(--green-mid)",
           }}>
             {PRE_Q2
