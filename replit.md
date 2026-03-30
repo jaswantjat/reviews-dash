@@ -11,7 +11,7 @@
 
 ## Overview
 
-Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays live net score vs 270-review objective, monthly breakdown, live clock, and rotating motivational messages. Reviews are fetched from Google Maps via a cascade of scraping API providers and stored in Supabase.
+Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays live net score vs 270-review objective, monthly breakdown, live clock, rotating review cards, and a PRE_Q2 countdown gauge. Reviews are fetched from Google Maps via a cascade of scraping API providers and stored in Supabase.
 
 ## Stack
 
@@ -23,7 +23,7 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 - **Database**: Supabase (PostgreSQL via REST/JS client, not direct Postgres connection)
 - **ORM**: Drizzle ORM (schema only — DB writes go through Supabase JS client)
 - **Build**: esbuild (ESM bundle)
-- **Frontend**: React + Vite
+- **Frontend**: React + Vite (single file: `artifacts/dashboard/src/App.tsx`, 959 lines)
 - **Deployment**: Railway.app (nixpacks)
 
 ## Structure
@@ -44,15 +44,36 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 ## Architecture
 
 ### Data Flow
-1. **Poll**: Backend polls SearchAPI → Apify (cascade) every 45 min
-2. **Store**: New reviews upserted into Supabase (`reviews` table), place info into `place_meta`
-3. **Serve**: SSE stream pushes live data to browser clients; REST fallback polls every 30 s
-4. **Fallback**: If all providers fail, cached DB data is served. If DB is empty, hardcoded baseline snapshot is used.
+1. **Poll**: Backend polls SearchAPI → Apify (cascade) every 45 min via `startPolling()` in `poller.ts`
+2. **Store**: New reviews upserted into Supabase `reviews` table via `upsertReviews()`; place info into `place_meta` via `upsertPlaceMeta()`
+3. **Cache + broadcast**: `setReviewsCache(data)` updates in-memory cache and calls `broadcast()` which pushes to all connected SSE clients via a `Set<DashboardListener>` pub/sub
+4. **Serve**: SSE stream (`/api/dashboard/stream`) sends current snapshot on connect, then pushes updates as they arrive. REST (`/api/dashboard`) returns cached snapshot for fast first paint and SSE fallback
+5. **Fallback**: If all providers fail, cached DB data is served. If DB is empty, hardcoded baseline snapshot is used.
+
+### SSE / Heartbeat
+- **Heartbeat interval**: 45 minutes (changed from 15 s on 2026-03-30) — just a TCP keep-alive ping
+- **Heartbeat event type**: `"heartbeat"` — client does NOT listen for this; it is silently ignored by the browser
+- **Data push event type**: `"dashboard"` — client listens via `es.addEventListener("dashboard", ...)`
+- **Retry hint**: `retry: 10000` — browser auto-reconnects in 10 s if connection drops
+- **Manual reconnect**: `es.onerror` → closes ES → REST poll → retry SSE after 30 s
+
+### Review Slider
+- Rotates through 8 most recent reviews every **14 seconds**
+- CSS animations: `revIn` (slide up, 0.6 s) / `revOut` (slide down, 0.32 s) via `.r-in` / `.r-out` classes
+- Dot indicators below the card are clickable and keyboard-navigable
+- `stripHtml()` cleans `<br>` and HTML entities before display
+- Content updates automatically when SSE pushes new data (React re-renders `currentReview = reviewList[revIdx]`)
+
+### Gauge (RadialGauge component)
+- **Pure SVG semicircle** — no Recharts dependency (Recharts was removed 2026-03-30)
+- PRE_Q2 mode (`dimmed=true`): full muted indigo ring, no progress fill, shows days until start
+- Active mode: indigo progress arc from left to right, proportional to `netScore / objective`
+- SVG arc math: `M cx-R cy A R R 0 0 1 cx+R cy` for track; endpoint computed via `cos/sin` for progress
 
 ### Key product decisions
 - **Google Maps reviews only** — no other platforms
 - **Real-time for current trimester**: Q2 2026 reviews are scraped live and count toward the 270-review goal
-- **Historical data = numbers only**: we do not need all 897 historical reviews stored individually. The `googleTotalReviews` (897) and `googleAvgRating` (4.6) from `place_meta` are the source of truth for the left-panel stats. The 498 stored reviews provide historical positive/negative context.
+- **Historical data = numbers only**: `googleTotalReviews` (898) and `googleAvgRating` (4.6) from `place_meta` are the authoritative left-panel stats. The 976 stored reviews provide historical positive/negative context for ratio scaling.
 
 ### Scoring logic
 - Rating ≥ 4 → positive (+1)
@@ -61,18 +82,18 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 - Net score = positive − negative
 - Only reviews with `iso_date` between `trimesterStart` and `trimesterEnd` count
 
-## Supabase (live as of 2026-03-29)
+## Supabase (live as of 2026-03-30)
 
 - **Project ID**: `nvrfoxhwfmierjmkwttt`
 - **URL**: `https://nvrfoxhwfmierjmkwttt.supabase.co`
 - **Publishable key**: `sb_publishable_cdPsgk5Rtz4y98BQ0ubniQ_QywlLeMZ`
 - **Service role key**: in `lib/db/src/supabase.ts`
 - **PAT**: stored as `SUPABASE_PAT` env var
-- **Tables**: `reviews` (**975 rows** stored as of 2026-03-29) + `place_meta` (1 row: 897 Google-reported total / 4.6 avg)
+- **Tables**: `reviews` (**976 rows** stored as of 2026-03-30) + `place_meta` (1 row: 898 Google-reported total / 4.6 avg)
 
-### Numbers — First-Principles Breakdown (verified live from Supabase 2026-03-29)
+### Numbers — First-Principles Breakdown (verified live 2026-03-30)
 
-**Raw Supabase query results (direct DB, no transformations):**
+**Raw Supabase (`reviews` table):**
 
 | Rating | Count | Category |
 |--------|-------|----------|
@@ -80,36 +101,36 @@ Full-stack TV dashboard for Eltex's Q2 2026 Google Reviews tracking. Displays li
 | ★★★★ (4) | 15 | POSITIVE |
 | ★★★ (3) | 5 | NEUTRAL |
 | ★★ (2) | 10 | NEGATIVE |
-| ★ (1) | 98 | NEGATIVE |
-| **Total stored** | **975** | — |
+| ★ (1) | 99 | NEGATIVE |
+| **Total stored** | **976** | — |
 
 Breakdown:
 - **4–5★ Positive: 847 + 15 = 862**
-- **1–2★ Negative: 10 + 98 = 108**
+- **1–2★ Negative: 10 + 99 = 109**
 - **3★ Neutral: 5**
-- **862 + 108 + 5 = 975 ✓**
+- **862 + 109 + 5 = 976 ✓**
 
-`place_meta` table: `google_total_reviews = 897`, `google_avg_rating = 4.6` (last updated 2026-03-29)
+`place_meta` table: `google_total_reviews = 898`, `google_avg_rating = 4.6` (last updated 2026-03-30)
 
-**Why 975 stored vs 897 on Google?** Our scrapers collected 78 reviews that Google no longer shows (removed/de-indexed). Google's 897 is the public-facing authoritative total.
+**Why 976 stored vs 898 on Google?** Our scrapers collected 78 reviews that Google no longer shows (removed/de-indexed). Google's 898 is the public-facing authoritative total.
 
-**Dashboard display logic (App.tsx) — verified:**
-- `reseñas totales` → `googleTotalReviews` = **897**
-- `Positivas` → `round(897 × 862 / (862+108))` = `round(897 × 862 / 970)` = `round(797.12)` = **797**
-- `Negativas` → `897 − 797` = **100**
-- **Check: 797 + 100 = 897 ✓**
-- Ratio: raw 862:108 = 7.98:1 → scaled 797:100 = 7.97:1 (preserved to 3 sig figs)
-- The 5 neutral reviews (~0.5% of total) are absorbed into the proportional rounding — no neutral category is shown on the dashboard
+**Dashboard display logic (App.tsx) — verified 2026-03-30:**
+- `reseñas totales` → `googleTotalReviews` = **898** (from `place_meta`)
+- `Positivas` → `round(898 × 862 / 971)` = `round(797.4)` = **797** (animated via `useCountUp(797, 2000)`)
+- `Negativas` → `898 − 797` = **101** (animated via `useCountUp(101, 2000)`)
+- **Check: 797 + 101 = 898 ✓**
+- All three counters (`cntTotal`, `cntPos`, `cntNeg`) now animate together on page load
 
 - **RLS**: enabled, anon key has full read/write access (non-sensitive data)
 - **Setup SQL**: `supabase-setup.sql` (already applied)
+- **Keep-alive**: Supabase pinged every 12 hours via `startKeepAlive()` to prevent free-tier project pause
 
 ## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/healthz` | Health check |
-| GET | `/api/dashboard` | Cached dashboard data |
+| GET | `/api/dashboard` | Cached dashboard data (JSON) |
 | GET | `/api/dashboard/stream` | SSE real-time stream |
 | POST | `/api/dashboard/refresh` | Manual provider refresh |
 | POST | `/api/dashboard/seed` | Full historical seed (50 pages, all providers) |
@@ -122,7 +143,7 @@ Breakdown:
 | 1 | SearchAPI | 100 calls/month | `SEARCHAPI_KEY` | `PLACE_ID_ELTEX` = `ChIJhTCaeeajpBIR4O9YniCqiJ0` |
 | 2 | Apify | Pay-per-use (`compass/Google-Maps-Reviews-Scraper`) | `APIFY_API_KEY` | place_id URL format |
 
-**Status as of 2026-03-29**: SearchAPI and Apify are active and working.
+**Status as of 2026-03-30**: SearchAPI and Apify are active and working.
 
 ## Environment Variables
 
@@ -146,12 +167,19 @@ trimester: {
 }
 ```
 
-## Pre-Trimester Countdown Mode
+## Pre-Trimester Countdown Mode (PRE_Q2)
 
-When today < `trimesterStart`, the dashboard shows a countdown:
-- Gauge center: days until trimester starts
+Activated when `new Date() < new Date(trimesterStart)`.
+
+Dashboard shows:
+- Gauge center: days until trimester starts (currently 2 days, as of 2026-03-30)
+- Gauge ring: muted indigo, no progress fill
+- Center badge: "NO INICIADO"
 - Left badge: "X días hasta el inicio de Q2"
-- Pace: calculated over the full trimester length
+- Progress bar: locked at 0%
+- Pace: calculated over full trimester duration (270 / 13 weeks = 21/week)
+- Label: "Objetivo Q2 2026: 0 / 270"
+- Note: "El marcador se activará el 1 ABR"
 
 ## Railway Deployment
 
@@ -160,11 +188,45 @@ When today < `trimesterStart`, the dashboard shows a countdown:
 - Express serves React static files from `artifacts/dashboard/dist/public/` in production
 - Required env vars: `PORT` (auto-set by Railway) + all keys above
 
-## Keep-alive
+## gstack QA Tool
 
-A background job pings Supabase every 12 hours to prevent the free-tier project from pausing due to inactivity.
+Installed at `.claude/skills/gstack/`. Binary: `.claude/skills/gstack/browse/dist/browse`.
+
+**IMPORTANT**: The headless Chromium browser used by the gstack `/qa` skill **cannot run in Replit** due to missing kernel sandboxing (`No usable sandbox!` — Replit blocks unprivileged user namespaces). Use these alternatives instead:
+- `screenshot` tool — visual audit of any URL
+- `curl` — API/SSE endpoint testing
+- `refresh_all_logs` — browser console errors and workflow logs
+- Code inspection — direct `App.tsx` audit
+
+Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (0.14.0.0 available).
 
 ## Recent Changes
+
+### 2026-03-30 — Full QA audit + bug fixes
+
+**Gauge — replaced Recharts with pure SVG:**
+- Removed `ResponsiveContainer` + `RadialBarChart` (were causing `ResponsiveContainer is not defined` runtime error)
+- Replaced with custom SVG semicircle: track path + conditional progress arc, computed via `cos/sin`
+- No Recharts dependency remains in `App.tsx`
+
+**Bug fix — Negative counter not animated:**
+- `NEGATIVAS` StatChip was receiving raw `NEGATIVE` number (jumped instantly to 101)
+- `POSITIVAS` and total both used `useCountUp` and animated smoothly
+- Fix: added `const cntNeg = useCountUp(NEGATIVE, 2000)` and wired it to the chip
+- All three stats (total, positivas, negativas) now count up together on page load
+
+**SSE heartbeat interval:**
+- Changed from 15 seconds → 45 minutes (matches polling interval)
+- Heartbeat is a passive TCP keep-alive; actual data pushes are instant via `broadcast()` pub/sub
+- Browser auto-reconnects in 10 s if connection drops (`retry: 10000`)
+
+**QA audit results (2026-03-30):**
+- All 13 API fields present ✓
+- All data sanity checks pass ✓
+- Zero console errors in current state ✓
+- SSE sends on connect + heartbeat every 45 min + instant push on new reviews ✓
+- Review slider rotates every 14 s, CSS animations intact ✓
+- Supabase write flow verified: poll → upsert reviews + place_meta → broadcast → SSE push ✓
 
 ### 2026-03-29 — UX review + bug fixes
 
@@ -181,12 +243,6 @@ A background job pings Supabase every 12 hours to prevent the free-tier project 
 - `lib/db` package had a **stale build** — `dist/supabase.d.ts` was missing `supabaseAdmin`, `pushReviewsToSupabase`, `pushPlaceMetaToSupabase`. Fixed by running `pnpm run build` in `lib/db`. **Always rebuild `lib/db` after touching `lib/db/src/supabase.ts`.**
 - `HARDCODED_DASHBOARD` fallback was missing `openTickets: 0` and `oldestTicketDays: 0` required by `DashboardCache` type
 - After rebuild: `npx tsc --noEmit` passes cleanly for both dashboard and api-server (EXIT:0)
-
-**Testing passed (2026-03-29 session):**
-- TypeScript: 0 errors in dashboard, 0 errors in api-server
-- API: `/api/dashboard` → 200, `/api/dashboard/stream` → SSE emitting
-- Data integrity: 13/13 checks pass (netScore, ratings, trimester dates, recentActivity, provider=database, openTickets present, updatedAt fresh)
-- Browser console: no errors
 
 ## UI/UX Skills
 
