@@ -184,10 +184,12 @@ Dashboard shows:
 
 ## Railway Deployment
 
-- `railway.json` — health check + restart policy
-- `nixpacks.toml` — build: dashboard → api-server; start: `node ./artifacts/api-server/dist/index.mjs`
+- `railway.json` — builder: Railpack, health check at `/api/healthz`, restart on failure
+- **Build**: Railpack auto-detects pnpm from `pnpm-lock.yaml` + runs the `build` script from root `package.json` (typecheck → dashboard → api-server)
+- **Start**: `node --enable-source-maps ./artifacts/api-server/dist/index.mjs` (set in `railway.json`)
 - Express serves React static files from `artifacts/dashboard/dist/public/` in production
-- Required env vars: `PORT` (auto-set by Railway) + all keys above
+- `.env.example` — Railway auto-suggests these variables for import when you connect the repo
+- Required env vars: `PORT` (auto-set by Railway), `SEARCHAPI_KEY`, `APIFY_API_KEY`, `SUPABASE_PAT`, optionally `POLL_HOUR_UTC`
 
 ## gstack QA Tool
 
@@ -210,9 +212,10 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 - `CONFIG.polling.reviewsIntervalMs` removed; replaced with `CONFIG.polling.pollHourUtc` (default `6`, overrideable via `POLL_HOUR_UTC` env var on Railway)
 - `isReviewCacheStale()` in `cache.ts` threshold updated from the old interval to 24 h
 
-**Railway deployment ready:**
-- `railway.json` and `nixpacks.toml` already in place; no changes needed
-- Set `POLL_HOUR_UTC=6` in Railway env vars if you want a different hour
+**Railway deployment updated for Railpack:**
+- Railway migrated from Nixpacks → Railpack; updated `railway.json` builder field to `RAILPACK`
+- Deleted `nixpacks.toml` — Railpack auto-detects pnpm and the monorepo from `pnpm-lock.yaml` / `pnpm-workspace.yaml`
+- Created `.env.example` — Railway scans this and offers one-click variable import when you connect the repo; includes `SEARCHAPI_KEY`, `APIFY_API_KEY`, `SUPABASE_PAT`, and `POLL_HOUR_UTC`
 
 ### 2026-03-30 — Full QA audit + bug fixes
 
