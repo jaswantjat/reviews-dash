@@ -1,0 +1,9 @@
+{
+  "ts_utc": "2026-03-31T09:00:00Z",
+  "category": "technical-gotcha",
+  "text": "scoreReviews() used new Date('2026-06-30') which equals midnight UTC, making d > end TRUE for any review after 00:00 UTC on the last day. For Spain (UTC+2), this excluded the entire June 30 working day from Q2 scoring. Fix: always append 'T23:59:59.999Z' to string end-dates before parsing. Never parse a bare YYYY-MM-DD date as a range boundary without explicitly setting the end-of-day time.",
+  "pointers": [
+    "artifacts/api-server/src/services/reviews.ts:330",
+    "docs/e2e-test-plan.md#TC-C1"
+  ]
+}

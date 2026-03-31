@@ -327,7 +327,7 @@ export function scoreReviews(
   months: string[],
 ) {
   const start = new Date(startDate);
-  const end = new Date(endDate);
+  const end = new Date(endDate + "T23:59:59.999Z");
 
   const monthlyMap: Record<string, { positive: number; negative: number }> = {};
   months.forEach((m) => (monthlyMap[m] = { positive: 0, negative: 0 }));

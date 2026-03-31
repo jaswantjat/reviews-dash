@@ -1,0 +1,9 @@
+{
+  "ts_utc": "2026-03-31T09:02:00Z",
+  "category": "anti-pattern",
+  "text": "timeAgoES() used a single template literal for all month counts, producing 'hace 1 meses' (grammatically wrong in Spanish). Any Spanish-language time formatting function must special-case the singular: if count === 1, use the singular noun form (mes, día, semana, hora) before the plural fallback. The threshold between weeks and months is 42 days (diffW >= 6), not 30 days.",
+  "pointers": [
+    "artifacts/dashboard/src/App.tsx:82",
+    "docs/e2e-test-plan.md#TC-D1"
+  ]
+}

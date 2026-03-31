@@ -296,6 +296,22 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 - `HARDCODED_DASHBOARD` fallback was missing `openTickets: 0` and `oldestTicketDays: 0` required by `DashboardCache` type
 - After rebuild: `npx tsc --noEmit` passes cleanly for both dashboard and api-server (EXIT:0)
 
+## AI Coding Workflow
+
+Embedded from https://github.com/nathnotifia/ai-coding-workflow into `.agents/skills/ai-coding-workflow/`.
+
+An isolated-agent workflow for PRD/EPIC planning and GitHub issue implementation. Two top-level commands:
+
+- **`prd`** — Turn a vague idea into a decision-complete PRD/EPIC using `prd-epic-workflow` + `requirements-clarity` (clarity score must reach ≥ 90/100), then decompose into child TASKs via `epic-decompose`.
+- **`impl`** — Orchestrate implementation of a GitHub issue via `gh-issue-orchestrator` → Dev sub-agent → QA sub-agent (merge gate, loops until PASS) → Merge sub-agent.
+
+Sub-skills stored at `.agents/skills/ai-coding-workflow/skills/`:
+- `prd-epic-workflow`, `requirements-clarity`, `epic-decompose`
+- `gh-issue-orchestrator`, `gh-issue-dev`, `gh-issue-qa`, `gh-issue-merge`
+- `agent-learnings` — log durable learnings as JSON to `.agents/skills/ai-coding-workflow/skills/agent-learnings/entries/`
+
+Key invariants: EPICs never closed by PRs. Every TASK body starts with `Epic: #<N>`. Every EPIC has a final `Execution: run end-to-end + post evidence` TASK. QA must PASS before Merge launches.
+
 ## UI/UX Skills
 
 The following UI/UX skills from the `ui-ux-pro-max-skill` repository are embedded in `.agents/skills/`:

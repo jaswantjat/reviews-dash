@@ -1,0 +1,9 @@
+{
+  "ts_utc": "2026-03-31T09:04:00Z",
+  "category": "workflow",
+  "text": "The project uses a Pareto-focused E2E test plan (docs/e2e-test-plan.md). 17 tests across 5 suites cover scoring accuracy, SSE reliability, bug reproduction, frontend logic, and security. Test status is tracked inline with emoji markers (PASS/BUG/NOTE/FIXED). When running QA, follow gh-issue-qa skill: extract contract, build coverage matrix, run happy-path + 3 negative scenarios, report PASS/FAIL with evidence. Never mark PASS if any requirement is unproven.",
+  "pointers": [
+    "docs/e2e-test-plan.md",
+    ".agents/skills/ai-coding-workflow/skills/gh-issue-qa/SKILL.md"
+  ]
+}

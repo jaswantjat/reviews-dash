@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Response } from "express";
+import { Router, type IRouter, type Response, type Request, type NextFunction } from "express";
 import { CONFIG } from "../config.js";
 import {
   getReviewsCache,
@@ -20,6 +20,16 @@ import type { RecentReview } from "../services/cache.js";
 import { pushReviewsToSupabase, pushPlaceMetaToSupabase } from "@workspace/db/supabase";
 
 const router: IRouter = Router();
+
+function requireAdminToken(req: Request, res: Response, next: NextFunction) {
+  const token = process.env.ADMIN_TOKEN;
+  if (!token) return next();
+  if (req.headers.authorization !== `Bearer ${token}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  return next();
+}
+
 const HARDCODED_UPDATED_AT = "2026-03-27T08:09:02Z";
 
 // ---------------------------------------------------------------------------
@@ -420,7 +430,7 @@ router.post("/dashboard/refresh", async (req, res) => {
   }
 });
 
-router.post("/dashboard/seed", async (req, res) => {
+router.post("/dashboard/seed", requireAdminToken, async (req, res) => {
   try {
     const results: Array<{ location: string; fetched: number; provider: string }> = [];
 
@@ -481,7 +491,7 @@ router.post("/dashboard/seed", async (req, res) => {
   }
 });
 
-router.post("/dashboard/push-to-supabase", async (req, res) => {
+router.post("/dashboard/push-to-supabase", requireAdminToken, async (req, res) => {
   try {
     const summary: Array<{ location: string; reviewsPushed: number; metaOk: boolean; errors: number; note?: string }> = [];
 

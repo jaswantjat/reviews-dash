@@ -76,6 +76,7 @@ function timeAgoES(isoDate: string): string {
   const diffW = Math.floor(diffD / 7);
   if (diffW < 6) return `hace ${diffW} semanas`;
   const diffMo = Math.floor(diffD / 30);
+  if (diffMo === 1) return "hace 1 mes";
   return `hace ${diffMo} meses`;
 }
 

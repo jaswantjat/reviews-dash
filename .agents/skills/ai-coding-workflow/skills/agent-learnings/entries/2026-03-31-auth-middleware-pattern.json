@@ -1,0 +1,9 @@
+{
+  "ts_utc": "2026-03-31T09:01:00Z",
+  "category": "architecture",
+  "text": "Admin-only endpoints (/seed, /push-to-supabase) must use the requireAdminToken middleware. Middleware is backward-compatible: if ADMIN_TOKEN env var is not set it passes through, so existing deployments are not broken. When ADMIN_TOKEN is set, callers must supply Authorization: Bearer <token>. ADMIN_TOKEN must be set as a Replit secret to activate protection in production.",
+  "pointers": [
+    "artifacts/api-server/src/routes/dashboard.ts:27-34",
+    "docs/e2e-test-plan.md#TC-E1"
+  ]
+}

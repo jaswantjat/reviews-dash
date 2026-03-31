@@ -1,0 +1,9 @@
+{
+  "ts_utc": "2026-03-31T09:03:00Z",
+  "category": "architecture",
+  "text": "The dashboard update pipeline is: poller (daily at 06:00 UTC) → provider fetch (SearchAPI then Apify) → upsert to Supabase → build cache → SSE broadcast to all connected clients. The poller uses isFetchInFlight() as a mutex to prevent concurrent fetches. SSE clients auto-reconnect in 10s via the retry directive. The /dashboard/refresh endpoint triggers an immediate out-of-schedule fetch. Q2 reviews (positive/negative) will be 0 until April 1 when the trimester begins.",
+  "pointers": [
+    "artifacts/api-server/src/services/poller.ts",
+    "artifacts/api-server/src/routes/dashboard.ts"
+  ]
+}
