@@ -551,12 +551,13 @@ export default function App() {
   const GOAL          = data?.objective ?? 270;
   const PROGRESS      = data?.netScore ?? 0;
   const RATING        = data?.googleAvgRating ?? 4.6;
+  // TOTAL is always Google's authoritative count
   const TOTAL         = data?.googleTotalReviews ?? 0;
-  // Use actual DB counts so every newly-scraped review is immediately reflected.
-  // The normalised approach (round(TOTAL × pos/posNeg)) rounds small increments
-  // to the same value and the chips appear frozen despite new reviews coming in.
-  const POSITIVE      = data?.allTimePositive ?? 0;
-  const NEGATIVE      = data?.allTimeNegative ?? 0;
+  // Scale DB positive/negative to sum to Google's total so the chips always add up
+  const DB_TOTAL      = data?.allTimeTotal ?? 0;
+  const SCALE         = DB_TOTAL > 0 && TOTAL > 0 ? TOTAL / DB_TOTAL : 1;
+  const POSITIVE      = DB_TOTAL > 0 ? Math.round((data?.allTimePositive ?? 0) * SCALE) : 0;
+  const NEGATIVE      = DB_TOTAL > 0 ? Math.round((data?.allTimeNegative ?? 0) * SCALE) : 0;
   const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
   const PRE_Q2        = data ? (() => { const t = new Date(); t.setHours(0,0,0,0); const s = new Date(data.trimesterStart); s.setHours(0,0,0,0); return t < s; })() : false;
   const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
@@ -586,6 +587,14 @@ export default function App() {
   const cntTotal = useCountUp(TOTAL, 1600);
   const cntPos   = useCountUp(POSITIVE, 2000);
   const cntNeg   = useCountUp(NEGATIVE, 2000);
+
+  // When the latest review changes (new data from SSE), snap back to show it
+  const latestReviewKey = data?.recentActivity?.[0]?.isoDate ?? "";
+  useEffect(() => {
+    if (reviewList.length === 0) return;
+    setRevIdx(0);
+    setRevCls("r-in");
+  }, [latestReviewKey, reviewList.length]);
 
   useEffect(() => {
     if (reviewList.length === 0) return;
@@ -695,7 +704,7 @@ export default function App() {
               <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.5px", color: "var(--text-1)" }}>
                 {cntTotal.toLocaleString()}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>reseñas totales</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>reseñas en Google</span>
             </div>
           </div>
 
