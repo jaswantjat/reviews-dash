@@ -114,12 +114,19 @@ Breakdown:
 
 **Why 976 stored vs 898 on Google?** Our scrapers collected 78 reviews that Google no longer shows (removed/de-indexed). Google's 898 is the public-facing authoritative total.
 
+**2026-04-05 — Cleanup incident & Apify recovery:**
+- A `/api/dashboard/cleanup` endpoint was created to prune de-indexed reviews.
+- BUG: SearchAPI only returns ~80 of 899 reviews (4 pages max). Cleanup treated the missing 819 as "de-indexed" and deleted them. 899 reviews were lost from Supabase.
+- RECOVERY: Apify (maxReviews=1000) returned all 899 current Google reviews; re-upserted into Supabase. DB restored to 979 reviews.
+- FIX: Cleanup endpoint now has a 90% coverage safety threshold — deletion is skipped if provider returns fewer than 90% of Google's known total. This prevents SearchAPI (8.9% coverage) from ever triggering the delete step.
+- The cleanup endpoint effectively ONLY performs deletion when Apify is the provider (returns 899/899 = 100% coverage). When SearchAPI is the provider, it safely upserts new reviews and skips deletion.
+
 **Dashboard display logic (App.tsx) — updated 2026-04-05:**
-- `reseñas totales` → `googleTotalReviews` = **898** (from `place_meta`, Google's official count)
-- `Positivas` → `allTimePositive` = **864** directly from DB (4-5★ reviews; animates with `useCountUp`)
-- `Negativas` → `allTimeNegative` = **109** directly from DB (1-2★ reviews; animates with `useCountUp`)
+- `reseñas totales` → `googleTotalReviews` = **899** (from `place_meta`, Google's official count, updated from 898)
+- `Positivas` → `allTimePositive` = **860** directly from DB (4-5★ reviews; animates with `useCountUp`)
+- `Negativas` → `allTimeNegative` = **116** directly from DB (1-2★ reviews; animates with `useCountUp`)
 - All three counters (`cntTotal`, `cntPos`, `cntNeg`) animate together on page load
-- Note: Positivas + Negativas (973) does not equal total (898) because our DB has ~78 de-indexed reviews Google removed. This is intentional — Google's 898 is shown as "official total" while our internal 864/109 reflect actual stored data.
+- allTimeTotal in DB: **979** (899 from Apify + 80 from SearchAPI with different ID formats due to provider differences — expected to converge over time as SearchAPI IDs are gradually replaced)
 
 - **RLS**: enabled, anon key has full read/write access (non-sensitive data)
 - **Setup SQL**: `supabase-setup.sql` (already applied)

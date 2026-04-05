@@ -13,6 +13,7 @@ import {
   getAllReviewsForPlace,
   getRecentReviewsForPlace,
   getPlaceMeta,
+  deleteReviewsNotIn,
 } from "../services/reviews-db.js";
 import { fetchAndStoreNewReviews as runProviderRefresh, isFetchInFlight } from "../services/poller.js";
 import { logger } from "../lib/logger.js";
@@ -487,6 +488,137 @@ router.post("/dashboard/seed", requireAdminToken, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Seed failed");
+    return res.status(500).json({ success: false, message: String(err) });
+  }
+});
+
+/**
+ * POST /api/dashboard/cleanup
+ *
+ * Full sync with Google Maps:
+ *  1. Fetch every current review (up to 50 pages) from the provider cascade.
+ *  2. Upsert them into the DB.
+ *  3. Delete any DB review that Google no longer shows (de-indexed reviews).
+ *  4. Update place_meta with the fresh Google total + rating.
+ *  5. Rebuild the dashboard cache.
+ *
+ * This can take 30-90 s depending on API response times.
+ */
+router.post("/dashboard/cleanup", requireAdminToken, async (req, res) => {
+  try {
+    const report: Array<{
+      location: string;
+      fetched: number;
+      upserted: number;
+      deleted: number;
+      newGoogleTotal: number;
+      provider: string;
+    }> = [];
+
+    for (const loc of CONFIG.locations) {
+      const placeId = getPlaceIdFromQuery(loc.googleMapsQuery);
+
+      req.log.info({ location: loc.name }, "Cleanup: fetching all current Google reviews (50 pages)");
+      const result = await fetchReviewsForLocation(loc.name, loc.googleMapsQuery, 50);
+
+      if (result.reviews.length === 0) {
+        req.log.warn({ location: loc.name }, "Cleanup: provider returned 0 reviews — skipping delete step");
+        report.push({ location: loc.name, fetched: 0, upserted: 0, deleted: 0, newGoogleTotal: 0, provider: result.provider });
+        continue;
+      }
+
+      // Safety threshold: only proceed with deletion if we fetched at least 90%
+      // of Google's known total. If the provider returns only 80 out of 899 reviews,
+      // deleting everything else would destroy historical data — not de-indexed reviews.
+      const knownGoogleTotal = result.placeInfo.googleTotalReviews;
+      const coveragePct = knownGoogleTotal > 0
+        ? (result.reviews.length / knownGoogleTotal) * 100
+        : 100;
+
+      if (knownGoogleTotal > 0 && result.reviews.length < knownGoogleTotal * 0.9) {
+        req.log.warn(
+          { location: loc.name, fetched: result.reviews.length, googleTotal: knownGoogleTotal, coveragePct: coveragePct.toFixed(1) },
+          "Cleanup: provider returned insufficient coverage — skipping delete step to protect historical data",
+        );
+        // Still upsert what we have (new reviews) but do NOT delete anything
+        const toInsert = result.reviews.map((review) => ({
+          id: makeReviewId(loc.googleMapsQuery, review.isoDate, review.author ?? "Anonymous"),
+          placeId,
+          locationName: loc.name,
+          rating: review.rating,
+          isoDate: review.isoDate,
+          reviewText: review.text ?? "",
+          author: review.author ?? "Anonymous",
+        }));
+        await upsertReviews(toInsert);
+        report.push({ location: loc.name, fetched: result.totalFetched, upserted: toInsert.length, deleted: 0, newGoogleTotal: knownGoogleTotal, provider: `${result.provider} (coverage too low: ${coveragePct.toFixed(1)}% — delete skipped)` });
+        continue;
+      }
+
+      // Build the canonical ID set for every review Google currently shows
+      const keepIds = new Set(
+        result.reviews.map((r) =>
+          makeReviewId(loc.googleMapsQuery, r.isoDate, r.author ?? "Anonymous"),
+        ),
+      );
+
+      // 1. Upsert current reviews
+      const toInsert = result.reviews.map((review) => ({
+        id: makeReviewId(loc.googleMapsQuery, review.isoDate, review.author ?? "Anonymous"),
+        placeId,
+        locationName: loc.name,
+        rating: review.rating,
+        isoDate: review.isoDate,
+        reviewText: review.text ?? "",
+        author: review.author ?? "Anonymous",
+      }));
+      await upsertReviews(toInsert);
+
+      // 2. Delete de-indexed reviews (in DB but not in the current Google set)
+      const deleted = await deleteReviewsNotIn(placeId, keepIds);
+
+      // 3. Update place_meta with fresh Google total and rating
+      await upsertPlaceMeta(
+        placeId,
+        loc.name,
+        result.placeInfo.googleTotalReviews,
+        result.placeInfo.googleAvgRating,
+        true,
+      );
+
+      req.log.info(
+        { location: loc.name, fetched: result.totalFetched, upserted: toInsert.length, deleted, googleTotal: result.placeInfo.googleTotalReviews },
+        "Cleanup complete for location",
+      );
+
+      report.push({
+        location: loc.name,
+        fetched: result.totalFetched,
+        upserted: toInsert.length,
+        deleted,
+        newGoogleTotal: result.placeInfo.googleTotalReviews,
+        provider: result.provider,
+      });
+    }
+
+    // Rebuild dashboard cache from the clean DB
+    const data = await buildMergedDashboard();
+    setReviewsCache(data);
+
+    return res.json({
+      success: true,
+      message: "Cleanup complete — DB now matches current Google Maps reviews",
+      report,
+      summary: {
+        totalInDb: data.allTimeTotal,
+        allTimePositive: data.allTimePositive,
+        allTimeNegative: data.allTimeNegative,
+        googleTotalReviews: data.googleTotalReviews,
+        netScore: data.netScore,
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Cleanup failed");
     return res.status(500).json({ success: false, message: String(err) });
   }
 });

@@ -134,6 +134,57 @@ export async function getPlaceMeta(placeId: string) {
   };
 }
 
+/**
+ * Delete all reviews for a place whose IDs are NOT in the keepIds set.
+ * Used after a full Google fetch to prune de-indexed reviews from our DB.
+ * Returns the number of rows deleted.
+ */
+export async function deleteReviewsNotIn(
+  placeId: string,
+  keepIds: Set<string>,
+): Promise<number> {
+  if (keepIds.size === 0) {
+    logger.warn({ placeId }, "deleteReviewsNotIn called with empty keepIds — skipping to avoid wiping everything");
+    return 0;
+  }
+
+  // Fetch all stored IDs for this place
+  const { data, error } = await supabaseAdmin
+    .from("reviews")
+    .select("id")
+    .eq("place_id", placeId);
+
+  if (error) {
+    logger.error({ error: error.message }, "deleteReviewsNotIn: failed to list stored IDs");
+    return 0;
+  }
+
+  const toDelete = (data ?? []).map(r => r.id).filter(id => !keepIds.has(id));
+  if (toDelete.length === 0) {
+    logger.info({ placeId }, "deleteReviewsNotIn: no de-indexed reviews to remove");
+    return 0;
+  }
+
+  // Delete in chunks of 100 to stay within Supabase row limits
+  const CHUNK = 100;
+  let deleted = 0;
+  for (let i = 0; i < toDelete.length; i += CHUNK) {
+    const chunk = toDelete.slice(i, i + CHUNK);
+    const { error: delErr } = await supabaseAdmin
+      .from("reviews")
+      .delete()
+      .in("id", chunk);
+    if (delErr) {
+      logger.error({ error: delErr.message }, "deleteReviewsNotIn: chunk delete failed");
+    } else {
+      deleted += chunk.length;
+    }
+  }
+
+  logger.info({ placeId, deleted }, "deleteReviewsNotIn: de-indexed reviews removed");
+  return deleted;
+}
+
 export async function countAllReviews(): Promise<number> {
   const { count, error } = await supabaseAdmin
     .from("reviews")
