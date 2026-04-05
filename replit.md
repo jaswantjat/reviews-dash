@@ -211,6 +211,24 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 
 ## Recent Changes
 
+### 2026-04-05 — Progress bar stuck at 0% — fixed
+
+**Bug fixed — both progress bars showing empty (0%) despite netScore > 0:**
+- Root cause: `pct = Math.round(1/270*100) = Math.round(0.37) = 0` → bar width was "0%"
+- Fix: split `pct` into three variables in App.tsx:
+  - `pctRaw` (float): raw decimal percentage, used for accurate calculations
+  - `pctBar` = `PROGRESS > 0 ? Math.max(pctRaw, 3) : 0` → bar always shows minimum 3% fill when any progress exists
+  - `pctLabel` = `"<1%"` when pct rounds to 0 but progress exists, else `"${pct}%"`
+- Both left-panel and footer progress bars now use `pctBar`
+- Footer percentage label now shows `"<1%"` instead of `"0%"`
+
+**Workflow port fixed:**
+- artifact.toml specifies `localPort = 5000` but workflow was running on PORT=3000 — mismatch
+- Fixed: workflow now runs with `PORT=5000` matching the artifact
+
+**Note on Positivas/Negativas/Total numbers:**
+- These are ALL-TIME scaled stats (not Q2-specific). They appear frozen because with only 1-2 new Q2 reviews, the rounding doesn't change the displayed value (still 797/101/898). This is correct by design per the scoring logic in replit.md.
+
 ### 2026-03-30 — Railway production deployment fixed & live
 
 **Bug fixed — frontend "not found" on Railway:**

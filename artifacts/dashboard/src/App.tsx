@@ -581,7 +581,11 @@ export default function App() {
   const reviewList = toReviewCards(data?.recentActivity ?? []);
 
   const remaining = Math.max(0, GOAL - PROGRESS);
-  const pct = Math.round((PROGRESS / Math.max(GOAL, 1)) * 100);
+  const pctRaw    = (PROGRESS / Math.max(GOAL, 1)) * 100;
+  const pct       = Math.round(pctRaw);
+  // Ensure the bar shows a sliver of fill when there is any progress, even if < 1%
+  const pctBar    = PROGRESS > 0 ? Math.max(pctRaw, 3) : 0;
+  const pctLabel  = PROGRESS > 0 && pct < 1 ? "<1%" : `${pct}%`;
 
   const cntTotal = useCountUp(TOTAL, 1600);
   const cntPos   = useCountUp(POSITIVE, 2000);
@@ -762,7 +766,7 @@ export default function App() {
                 {PRE_Q2 ? `0 / ${GOAL}` : `${PROGRESS} / ${GOAL}`}
               </span>
             </div>
-            <ProgressBar pct={PRE_Q2 ? 0 : pct} height={9}/>
+            <ProgressBar pct={PRE_Q2 ? 0 : pctBar} height={9}/>
             <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-3)", marginTop: 8, lineHeight: 1.4 }}>
               {PRE_Q2
                 ? `Empieza el ${START_LABEL} · objetivo ${GOAL} reseñas`
@@ -939,11 +943,11 @@ export default function App() {
         </div>
 
         <div style={{ flex: 1 }}>
-          <ProgressBar pct={PRE_Q2 ? 0 : pct} height={7}/>
+          <ProgressBar pct={PRE_Q2 ? 0 : pctBar} height={7}/>
         </div>
 
         <span style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", flexShrink: 0 }}>
-          {PRE_Q2 ? "—" : `${pct}%`}
+          {PRE_Q2 ? "—" : pctLabel}
         </span>
 
         <div style={{ width: 1, height: 18, background: "var(--divider)", flexShrink: 0 }}/>
