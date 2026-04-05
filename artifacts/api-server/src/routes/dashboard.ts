@@ -120,6 +120,30 @@ function normalizeIsoDate(isoDate: string): string {
   return isoDate.replace(/\.\d+Z$/, "Z");
 }
 
+/** Deduplicate reviews by normalised ISO-date + rating.
+ *  Prefer named authors over "Anonymous" and reviews with text over those without. */
+function deduplicateRecentReviews<T extends { rating: number; isoDate: string; text: string; author: string }>(
+  reviews: T[]
+): T[] {
+  const seen = new Map<string, T>();
+  for (const r of reviews) {
+    const key = `${normalizeIsoDate(r.isoDate)}::${r.rating}`;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, r);
+    } else {
+      const existingIsAnon = existing.author === "Anonymous";
+      const newIsAnon = r.author === "Anonymous";
+      if (existingIsAnon && !newIsAnon) {
+        seen.set(key, r); // prefer named author
+      } else if (!existing.text.trim() && r.text.trim()) {
+        seen.set(key, r); // prefer review with text
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
 function makeReviewId(googleMapsQuery: string, isoDate: string, author: string) {
   return `${googleMapsQuery}::${normalizeIsoDate(isoDate)}::${author}`.slice(0, 255);
 }
@@ -180,7 +204,7 @@ async function buildDashboardFromDb() {
     const placeId = getPlaceIdFromQuery(loc.googleMapsQuery);
 
     const dbReviews = await getAllReviewsForPlace(placeId);
-    const recentDbReviews = await getRecentReviewsForPlace(placeId, 20);
+    const recentDbReviews = await getRecentReviewsForPlace(placeId, 40); // fetch extra for dedup headroom
     const meta = await getPlaceMeta(placeId);
 
     const reviewsForScoring = dbReviews.map((review) => ({
@@ -249,7 +273,7 @@ async function buildDashboardFromDb() {
     });
   }
 
-  const recentActivity = allRecentReviews
+  const recentActivity = deduplicateRecentReviews(allRecentReviews)
     .sort((a, b) => new Date(b.isoDate).getTime() - new Date(a.isoDate).getTime())
     .slice(0, 8);
 

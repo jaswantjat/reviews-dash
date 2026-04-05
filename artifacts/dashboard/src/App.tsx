@@ -111,23 +111,50 @@ function quarterRange(start: string, end: string): string {
   return `${ES_MONTHS[s.getMonth()]} – ${ES_MONTHS[e.getMonth()]} ${e.getFullYear()}`;
 }
 
+function normalizeDate(iso: string): string {
+  return iso.replace(/\.\d+Z$/, "Z");
+}
+
 function toReviewCards(reviews: RecentReview[]) {
-  return reviews.map((r, i) => {
-    const hue = nameToHue(r.author);
-    const sat = 55 + (hue % 20);
-    const lit = 38 + (hue % 20);
-    return {
-      id: i,
-      name: r.author,
-      ini: initials(r.author),
-      hue,
-      sat: `${sat}%`,
-      lit: `${lit}%`,
-      r: r.rating,
-      t: timeAgoES(r.isoDate),
-      txt: stripHtml(r.text) || "Cliente de Eltex Solar.",
-    };
-  });
+  // 1. Deduplicate: same second + rating → prefer named author and/or text
+  const seen = new Map<string, RecentReview>();
+  for (const r of reviews) {
+    const key = `${normalizeDate(r.isoDate)}::${r.rating}`;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, r);
+    } else {
+      const existingIsAnon = !existing.author || existing.author === "Anonymous";
+      const newIsAnon = !r.author || r.author === "Anonymous";
+      if (existingIsAnon && !newIsAnon) {
+        seen.set(key, r);
+      } else if (!existing.text?.trim() && r.text?.trim()) {
+        seen.set(key, r);
+      }
+    }
+  }
+  // 2. Filter: skip anonymous reviews with no text (zero value to viewer)
+  return Array.from(seen.values())
+    .filter(r => {
+      const isAnon = !r.author || r.author === "Anonymous";
+      return !isAnon || (r.text && r.text.trim().length > 0);
+    })
+    .map((r, i) => {
+      const hue = nameToHue(r.author);
+      const sat = 55 + (hue % 20);
+      const lit = 38 + (hue % 20);
+      return {
+        id: i,
+        name: r.author,
+        ini: initials(r.author),
+        hue,
+        sat: `${sat}%`,
+        lit: `${lit}%`,
+        r: r.rating,
+        t: timeAgoES(r.isoDate),
+        txt: stripHtml(r.text) || "Sin texto de reseña.",
+      };
+    });
 }
 
 // ─── LIVE DATA HOOK ────────────────────────────────────────────────────────
@@ -137,9 +164,10 @@ const API_SSE  = "/api/dashboard/stream";
 function useDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState(false);
-  const esRef      = useRef<EventSource | null>(null);
-  const retryRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef = useRef(true);
+  const esRef        = useRef<EventSource | null>(null);
+  const retryRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryDelayMs = useRef(2000); // exponential backoff: starts at 2s
+  const mountedRef   = useRef(true);
 
   const connectSSE = useCallback(() => {
     if (!mountedRef.current) return;
@@ -155,6 +183,7 @@ function useDashboard() {
       try {
         setData(JSON.parse(e.data));
         setError(false);
+        retryDelayMs.current = 2000; // reset backoff on successful data
       } catch {/* ignore parse errors */}
     });
 
@@ -162,12 +191,15 @@ function useDashboard() {
       es.close();
       esRef.current = null;
       if (!mountedRef.current) return;
-      // Fall back to REST poll, then retry SSE in 30 s
+      // REST poll for latest data immediately
       fetch(API_REST)
         .then(r => r.json())
         .then(d => { if (mountedRef.current) { setData(d); setError(false); } })
         .catch(() => { if (mountedRef.current) setError(true); });
-      retryRef.current = setTimeout(connectSSE, 30000);
+      // Exponential backoff: 2s → 4s → 8s → 16s → 30s max
+      const delay = retryDelayMs.current;
+      retryDelayMs.current = Math.min(delay * 2, 30000);
+      retryRef.current = setTimeout(connectSSE, delay);
     };
   }, []);
 
@@ -264,12 +296,13 @@ function useCountUp(target: number, ms = 1800) {
     const from = fromRef.current;
     let start: number | null = null;
     let raf: number;
+    let current = from;
     const tick = (ts: number) => {
       if (!start) start = ts;
       const p = Math.min((ts - start) / ms, 1);
       const eased = 1 - Math.pow(1 - p, 3);
-      const cur = Math.round(from + eased * (target - from));
-      setV(cur);
+      current = Math.round(from + eased * (target - from));
+      setV(current);
       if (p < 1) {
         raf = requestAnimationFrame(tick);
       } else {
@@ -277,7 +310,10 @@ function useCountUp(target: number, ms = 1800) {
       }
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      fromRef.current = current; // save where we were when interrupted
+    };
   }, [target, ms]);
   return v;
 }
@@ -598,6 +634,7 @@ export default function App() {
 
   useEffect(() => {
     if (reviewList.length === 0) return;
+    // Reset interval when new data arrives so latest review gets full display time
     const id = setInterval(() => {
       setRevCls("r-out");
       setTimeout(() => {
@@ -606,7 +643,7 @@ export default function App() {
       }, 350);
     }, 14000);
     return () => clearInterval(id);
-  }, [reviewList.length]);
+  }, [reviewList.length, latestReviewKey]);
 
   if (!data && !error) return <LoadingScreen/>;
 
