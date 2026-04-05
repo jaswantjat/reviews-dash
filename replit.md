@@ -114,12 +114,12 @@ Breakdown:
 
 **Why 976 stored vs 898 on Google?** Our scrapers collected 78 reviews that Google no longer shows (removed/de-indexed). Google's 898 is the public-facing authoritative total.
 
-**Dashboard display logic (App.tsx) — verified 2026-03-30:**
-- `reseñas totales` → `googleTotalReviews` = **898** (from `place_meta`)
-- `Positivas` → `round(898 × 862 / 971)` = `round(797.4)` = **797** (animated via `useCountUp(797, 2000)`)
-- `Negativas` → `898 − 797` = **101** (animated via `useCountUp(101, 2000)`)
-- **Check: 797 + 101 = 898 ✓**
-- All three counters (`cntTotal`, `cntPos`, `cntNeg`) now animate together on page load
+**Dashboard display logic (App.tsx) — updated 2026-04-05:**
+- `reseñas totales` → `googleTotalReviews` = **898** (from `place_meta`, Google's official count)
+- `Positivas` → `allTimePositive` = **864** directly from DB (4-5★ reviews; animates with `useCountUp`)
+- `Negativas` → `allTimeNegative` = **109** directly from DB (1-2★ reviews; animates with `useCountUp`)
+- All three counters (`cntTotal`, `cntPos`, `cntNeg`) animate together on page load
+- Note: Positivas + Negativas (973) does not equal total (898) because our DB has ~78 de-indexed reviews Google removed. This is intentional — Google's 898 is shown as "official total" while our internal 864/109 reflect actual stored data.
 
 - **RLS**: enabled, anon key has full read/write access (non-sensitive data)
 - **Setup SQL**: `supabase-setup.sql` (already applied)
@@ -226,8 +226,11 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 - artifact.toml specifies `localPort = 5000` but workflow was running on PORT=3000 — mismatch
 - Fixed: workflow now runs with `PORT=5000` matching the artifact
 
-**Note on Positivas/Negativas/Total numbers:**
-- These are ALL-TIME scaled stats (not Q2-specific). They appear frozen because with only 1-2 new Q2 reviews, the rounding doesn't change the displayed value (still 797/101/898). This is correct by design per the scoring logic in replit.md.
+**Positivas/Negativas chips fixed — no longer frozen:**
+- Old logic: `POSITIVE = round(googleTotal × allTimePositive / (allTimePositive + allTimeNegative))` → normalization to Google's 898 total caused rounding to swallow small increments (adding 2 reviews kept display at 797)
+- New logic: `POSITIVE = allTimePositive` and `NEGATIVE = allTimeNegative` directly from DB → every new scraped review increments the chip by exactly 1
+- Values now: POSITIVAS = 864, NEGATIVAS = 109 (up from 797/101)
+- TOTAL stays as `googleTotalReviews` (898 from place_meta) — Google's official count
 
 ### 2026-03-30 — Railway production deployment fixed & live
 

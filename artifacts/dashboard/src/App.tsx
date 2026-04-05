@@ -552,15 +552,11 @@ export default function App() {
   const PROGRESS      = data?.netScore ?? 0;
   const RATING        = data?.googleAvgRating ?? 4.6;
   const TOTAL         = data?.googleTotalReviews ?? 0;
-  const _rawPositive  = data?.allTimePositive ?? 0;
-  const _rawNegative  = data?.allTimeNegative ?? 0;
-  const _rawPosNeg    = _rawPositive + _rawNegative;
-  const POSITIVE      = _rawPosNeg > 0 && TOTAL > 0
-    ? Math.round(TOTAL * _rawPositive / _rawPosNeg)
-    : _rawPositive;
-  const NEGATIVE      = _rawPosNeg > 0 && TOTAL > 0
-    ? TOTAL - POSITIVE
-    : _rawNegative;
+  // Use actual DB counts so every newly-scraped review is immediately reflected.
+  // The normalised approach (round(TOTAL × pos/posNeg)) rounds small increments
+  // to the same value and the chips appear frozen despite new reviews coming in.
+  const POSITIVE      = data?.allTimePositive ?? 0;
+  const NEGATIVE      = data?.allTimeNegative ?? 0;
   const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
   const PRE_Q2        = data ? (() => { const t = new Date(); t.setHours(0,0,0,0); const s = new Date(data.trimesterStart); s.setHours(0,0,0,0); return t < s; })() : false;
   const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
