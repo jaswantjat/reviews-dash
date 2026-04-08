@@ -218,6 +218,22 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 
 ## Recent Changes
 
+### 2026-04-08 — Logic audit + 3 bug fixes
+
+**Bug 1 — PACE used Math.round instead of Math.ceil (undershoots goal by 3):**
+- Old: `Math.round(267/12) = 22` → 22×12=264, 3 short of 267 needed
+- New: `Math.ceil(267/12) = 23` → 23×12=276, safely above goal
+- Applied to both PRE_Q2 and in-Q2 branches
+
+**Bug 2 — Chips sum was 902 instead of exactly 901 (rounding drift):**
+- Old: NEGATIVE = round(116 × SCALE) = round(106.65) = 107 → sum=902
+- New: NEGATIVE = TOTAL − POSITIVE − NEUTRAL = 901−792−3 = 106 → sum=901 ✅ exact
+- All-time chips now always sum exactly to `googleTotalReviews`
+
+**Bug 3 — Footer text said "reseñas" not "reseñas positivas":**
+- Old: `"de 270 reseñas · Q2 2026"`
+- New: `"de 270 reseñas positivas · Q2 2026"` — consistent with all other text on the dashboard
+
 ### 2026-04-08 — Neutral chip added + Progress now tracks positive reviews only
 
 **PROGRESS metric changed — now counts Q2 positive reviews only (not net score):**

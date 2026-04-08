@@ -594,9 +594,10 @@ export default function App() {
   const DB_TOTAL      = data?.allTimeTotal ?? 0;
   const SCALE         = DB_TOTAL > 0 && TOTAL > 0 ? TOTAL / DB_TOTAL : 1;
   const POSITIVE      = DB_TOTAL > 0 ? Math.round((data?.allTimePositive ?? 0) * SCALE) : 0;
-  const NEGATIVE      = DB_TOTAL > 0 ? Math.round((data?.allTimeNegative ?? 0) * SCALE) : 0;
   const NEUTRAL_RAW   = Math.max(0, (data?.allTimeTotal ?? 0) - (data?.allTimePositive ?? 0) - (data?.allTimeNegative ?? 0));
   const NEUTRAL       = DB_TOTAL > 0 ? Math.round(NEUTRAL_RAW * SCALE) : 0;
+  // Derive NEGATIVE as remainder so pos+neu+neg always sums exactly to TOTAL (no rounding drift)
+  const NEGATIVE      = DB_TOTAL > 0 ? Math.max(0, TOTAL - POSITIVE - NEUTRAL) : 0;
   const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
   const PRE_Q2        = data ? (() => { const t = new Date(); t.setHours(0,0,0,0); const s = new Date(data.trimesterStart); s.setHours(0,0,0,0); return t < s; })() : false;
   const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
@@ -607,8 +608,8 @@ export default function App() {
   const Q2_TOTAL_WEEKS  = Math.max(Math.ceil((DAYS - DAYS_TO_START) / 7), 1);
   const WEEKS_LEFT      = Math.max(Math.ceil(DAYS / 7), 1);
   const PACE            = PRE_Q2
-    ? Math.round(GOAL / Q2_TOTAL_WEEKS)
-    : DAYS > 0 ? Math.max(0, Math.round((GOAL - PROGRESS) / WEEKS_LEFT)) : 0;
+    ? Math.ceil(GOAL / Q2_TOTAL_WEEKS)
+    : DAYS > 0 ? Math.max(0, Math.ceil((GOAL - PROGRESS) / WEEKS_LEFT)) : 0;
   const Q             = {
     label: data?.trimesterName ?? "Q2 2026",
     range: data ? quarterRange(data.trimesterStart, data.trimesterEnd) : "ABR – JUN 2026",
@@ -992,7 +993,7 @@ export default function App() {
             {PRE_Q2 ? `↗ ${GOAL}` : PROGRESS}
           </span>
           <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>
-            {PRE_Q2 ? `objetivo · ${Q.label} · empieza el ${START_LABEL}` : `de ${GOAL} reseñas · ${Q.label}`}
+            {PRE_Q2 ? `objetivo · ${Q.label} · empieza el ${START_LABEL}` : `de ${GOAL} reseñas positivas · ${Q.label}`}
           </span>
         </div>
 
