@@ -541,15 +541,16 @@ function ReviewCard({ review, cls }: { review: ReviewItem; cls: string }) {
 }
 
 // ─── STAT CHIP ─────────────────────────────────────────────────────────────
-function StatChip({ label, value, bg, border, labelColor, valColor, subtext, subtextColor }: {
+function StatChip({ label, value, bg, border, labelColor, valColor, subtext, subtextColor, compact = false }: {
   label: string; value: string | number; bg: string; border: string;
   labelColor: string; valColor: string; subtext: string; subtextColor: string;
+  compact?: boolean;
 }) {
   return (
-    <div style={{ flex: 1, padding: "13px 16px", background: bg, borderRadius: 16, border: `1px solid ${border}` }}>
-      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: labelColor, marginBottom: 7 }}>{label}</div>
-      <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1, color: valColor }}>{value}</div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: subtextColor, marginTop: 5 }}>{subtext}</div>
+    <div style={{ flex: 1, padding: compact ? "10px 11px" : "13px 16px", background: bg, borderRadius: 14, border: `1px solid ${border}`, minWidth: 0 }}>
+      <div style={{ fontSize: compact ? 8 : 10, fontWeight: 800, letterSpacing: compact ? "0.03em" : "0.1em", textTransform: "uppercase", color: labelColor, marginBottom: compact ? 4 : 7, lineHeight: 1.3 }}>{label}</div>
+      <div style={{ fontSize: compact ? 24 : 30, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1, color: valColor }}>{value}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: subtextColor, marginTop: 4, whiteSpace: "nowrap" }}>{subtext}</div>
     </div>
   );
 }
@@ -594,6 +595,8 @@ export default function App() {
   const SCALE         = DB_TOTAL > 0 && TOTAL > 0 ? TOTAL / DB_TOTAL : 1;
   const POSITIVE      = DB_TOTAL > 0 ? Math.round((data?.allTimePositive ?? 0) * SCALE) : 0;
   const NEGATIVE      = DB_TOTAL > 0 ? Math.round((data?.allTimeNegative ?? 0) * SCALE) : 0;
+  const NEUTRAL_RAW   = Math.max(0, (data?.allTimeTotal ?? 0) - (data?.allTimePositive ?? 0) - (data?.allTimeNegative ?? 0));
+  const NEUTRAL       = DB_TOTAL > 0 ? Math.round(NEUTRAL_RAW * SCALE) : 0;
   const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
   const PRE_Q2        = data ? (() => { const t = new Date(); t.setHours(0,0,0,0); const s = new Date(data.trimesterStart); s.setHours(0,0,0,0); return t < s; })() : false;
   const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
@@ -620,9 +623,10 @@ export default function App() {
   const pctBar    = PROGRESS > 0 ? Math.max(pctRaw, 3) : 0;
   const pctLabel  = PROGRESS > 0 && pct < 1 ? "<1%" : `${pct}%`;
 
-  const cntTotal = useCountUp(TOTAL, 1600);
-  const cntPos   = useCountUp(POSITIVE, 2000);
-  const cntNeg   = useCountUp(NEGATIVE, 2000);
+  const cntTotal   = useCountUp(TOTAL, 1600);
+  const cntPos     = useCountUp(POSITIVE, 2000);
+  const cntNeg     = useCountUp(NEGATIVE, 2000);
+  const cntNeutral = useCountUp(NEUTRAL, 2000);
 
   // When the latest review changes (new data from SSE), snap back to show it
   const latestReviewKey = data?.recentActivity?.[0]?.isoDate ?? "";
@@ -749,16 +753,24 @@ export default function App() {
 
           {/* Distribution */}
           <div style={{ padding: "12px 24px" }}>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 7 }}>
               <StatChip label="Positivas" value={cntPos.toLocaleString()}
                 bg="var(--green-bg)" border="var(--green-border)"
                 labelColor="var(--green-mid)" valColor="var(--green)"
-                subtext="4 – 5 estrellas" subtextColor="#34D399"
+                subtext="4–5★" subtextColor="#34D399"
+                compact
+              />
+              <StatChip label="Neutrales" value={cntNeutral.toLocaleString()}
+                bg="var(--amber-bg)" border="var(--amber-border)"
+                labelColor="var(--amber-mid)" valColor="var(--amber)"
+                subtext="3★" subtextColor="var(--amber-mid)"
+                compact
               />
               <StatChip label="Negativas" value={cntNeg.toLocaleString()}
                 bg="var(--red-bg)" border="var(--red-border)"
                 labelColor="var(--red-mid)" valColor="var(--red)"
-                subtext="1 – 2 estrellas" subtextColor="#FCA5A5"
+                subtext="1–2★" subtextColor="#FCA5A5"
+                compact
               />
             </div>
           </div>

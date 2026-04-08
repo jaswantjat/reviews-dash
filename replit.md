@@ -218,6 +218,23 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 
 ## Recent Changes
 
+### 2026-04-08 — Neutral chip added + Progress now tracks positive reviews only
+
+**PROGRESS metric changed — now counts Q2 positive reviews only (not net score):**
+- Old: `PROGRESS = data.netScore` (positive − negative) → gave net=1 despite 3 positives
+- New: `PROGRESS = data.positive` (Q2 positive reviews only)
+- Gauge, progress bar, pace calculation, and remaining count now all reflect positive reviews
+- Business logic: the 270-review goal = 270 positive reviews, not 270 net reviews
+
+**Neutrales chip added to left panel:**
+- New amber color tokens added to `index.css`: `--amber`, `--amber-bg`, `--amber-border`, `--amber-mid`
+- `StatChip` component updated with `compact?: boolean` prop (reduces padding and font size for 3-chip row)
+- `NEUTRAL_RAW = allTimeTotal − allTimePositive − allTimeNegative`, scaled with same SCALE factor as pos/neg
+- `cntNeutral = useCountUp(NEUTRAL, 2000)` added alongside existing cntPos/cntNeg
+- Left panel now shows 3 chips: POSITIVAS (green) | NEUTRALES (amber) | NEGATIVAS (red)
+- All 3 chips use `compact` mode: padding 10px 11px, value fontSize 24, label fontSize 8 with reduced letter-spacing
+- Final chip values: POSITIVAS ≈ 792, NEUTRALES = 3, NEGATIVAS ≈ 107 (sum ≈ 901 = Google total)
+
 ### 2026-04-05 — Progress bar stuck at 0% — fixed
 
 **Bug fixed — both progress bars showing empty (0%) despite netScore > 0:**
