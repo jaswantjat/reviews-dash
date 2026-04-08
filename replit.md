@@ -218,6 +218,32 @@ Skills loaded: `/qa`, `/qa-only`, `/investigate`, `/review`. Version: 0.13.3.0 (
 
 ## Recent Changes
 
+### 2026-04-08 — Deep audit: duplicate review deduplication in scoring pipeline
+
+**Root cause found: scoring was counting duplicates from provider scraping**
+- The provider (SearchAPI/Apify) occasionally returns the same physical review twice in one scrape:
+  one with the real author name and one as "Anonymous", timestamps differing by only milliseconds
+- The duplicate was stored as two separate DB rows (different IDs) and scored independently
+- `deduplicateRecentReviews` already handled this for the carousel, but `scoreReviews` had no dedup
+- Net effect: Q2 positives showed 3 (wrong) when it should have been 2 (only 2 unique ≥4★ in Q2)
+- Also: the 980 raw DB rows contained 79 duplicates from multiple scrape runs; true unique count = 901 (matching Google exactly)
+
+**Fix: dedup applied in `buildDashboardFromDb` before scoring**
+- Added `dedupSeen` Map keyed by `normalizeIsoDate(isoDate)::rating` in `buildDashboardFromDb`
+- Same normalization as the existing `deduplicateRecentReviews` (strips milliseconds from timestamp)
+- Applied to BOTH `scoreReviews` (Q2 scoring) AND `scoreAllTime` (all-time chip counts)
+- `totalFetched` now also uses deduplicated count (not raw row count)
+
+**Side-effect (positive): allTimeTotal now equals googleTotalReviews exactly**
+- Old: allTimeTotal=980 (raw rows), SCALE=901/980=0.9194, chips had rounding drift
+- New: allTimeTotal=901, SCALE=1.0, no approximation needed, chips are exact counts
+- POSITIVAS: 808 (was ~792 scaled), NEUTRALES: 3, NEGATIVAS: 90 (was ~107 scaled), sum=901 ✅
+
+**Q2 state after fix (2026-04-08):**
+- Q2 positives: 2 (Apr 7 Anonymous 5★ + Roser Bombi Martinez 5★ Apr 2)
+- Q2 negatives: 2 (Apr 5 Anonymous 1★ + Apr 7 Anonymous 1★)
+- PROGRESS=2, remaining=268, PACE=ceil(268/12)=23/week
+
 ### 2026-04-08 — Logic audit + 3 bug fixes
 
 **Bug 1 — PACE used Math.round instead of Math.ceil (undershoots goal by 3):**

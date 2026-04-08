@@ -207,10 +207,22 @@ async function buildDashboardFromDb() {
     const recentDbReviews = await getRecentReviewsForPlace(placeId, 40); // fetch extra for dedup headroom
     const meta = await getPlaceMeta(placeId);
 
-    const reviewsForScoring = dbReviews.map((review) => ({
+    const reviewsRaw = dbReviews.map((review) => ({
       rating: review.rating,
       isoDate: review.isoDate,
     }));
+
+    // Deduplicate by normalised timestamp + rating (same logic as carousel).
+    // Providers occasionally return the same physical review twice — once with
+    // the author's name and once as Anonymous — with timestamps that differ by
+    // only a few milliseconds. Normalising strips sub-second precision so both
+    // collapse to the same key and only one is counted.
+    const dedupSeen = new Map<string, { rating: number; isoDate: string }>();
+    for (const r of reviewsRaw) {
+      const key = `${normalizeIsoDate(r.isoDate)}::${r.rating}`;
+      if (!dedupSeen.has(key)) dedupSeen.set(key, r);
+    }
+    const reviewsForScoring = Array.from(dedupSeen.values());
 
     const scored = scoreReviews(
       reviewsForScoring,
@@ -223,7 +235,7 @@ async function buildDashboardFromDb() {
 
     totalPositive += scored.totalPositive;
     totalNegative += scored.totalNegative;
-    totalFetched += dbReviews.length;
+    totalFetched += reviewsForScoring.length;
     allTimePositive += allTime.positive;
     allTimeNegative += allTime.negative;
     allTimeTotal += allTime.total;
