@@ -585,7 +585,7 @@ export default function App() {
 
   // Derive display values
   const GOAL          = data?.objective ?? 270;
-  const PROGRESS      = data?.netScore ?? 0;
+  const PROGRESS      = data?.positive ?? 0;
   const RATING        = data?.googleAvgRating ?? 4.6;
   // TOTAL is always Google's authoritative count
   const TOTAL         = data?.googleTotalReviews ?? 0;
