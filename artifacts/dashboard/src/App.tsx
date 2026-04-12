@@ -326,10 +326,36 @@ function StatChip({ label, value, bg, border, labelColor, valColor, subtext, sub
   compact?: boolean;
 }) {
   return (
-    <div style={{ flex: 1, padding: compact ? "10px 11px" : "13px 16px", background: bg, borderRadius: 14, border: `1px solid ${border}`, minWidth: 0 }}>
+    <div
+      style={{
+        flex: 1,
+        padding: compact ? "10px 11px" : "13px 16px",
+        background: bg,
+        borderRadius: 14,
+        border: `1px solid ${border}`,
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        gap: compact ? 4 : 6,
+      }}
+    >
       <div style={{ fontSize: compact ? 8 : 10, fontWeight: 800, letterSpacing: compact ? "0.03em" : "0.1em", textTransform: "uppercase", color: labelColor, marginBottom: compact ? 4 : 7, lineHeight: 1.3 }}>{label}</div>
       <div style={{ fontSize: compact ? 24 : 30, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1, color: valColor }}>{value}</div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: subtextColor, marginTop: 4, whiteSpace: "nowrap" }}>{subtext}</div>
+      <div
+        style={{
+          fontSize: compact ? 8.5 : 10,
+          fontWeight: 600,
+          color: subtextColor,
+          marginTop: 4,
+          lineHeight: 1.25,
+          whiteSpace: "normal",
+          textWrap: "balance",
+          minHeight: compact ? 22 : 26,
+        }}
+      >
+        {subtext}
+      </div>
     </div>
   );
 }
