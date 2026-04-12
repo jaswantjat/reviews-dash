@@ -333,16 +333,22 @@ export function scoreReviews(
   months.forEach((m) => (monthlyMap[m] = { positive: 0, negative: 0 }));
 
   let totalPositive = 0;
+  let totalNeutral = 0;
   let totalNegative = 0;
 
   for (const review of reviews) {
     const d = new Date(review.isoDate);
     if (d < start || d > end) continue;
 
-    const monthName = d.toLocaleString("en-US", { month: "long" });
+    const monthName = d.toLocaleString("en-US", {
+      month: "long",
+      timeZone: "UTC",
+    });
     if (review.rating >= 4) {
       totalPositive++;
       if (monthlyMap[monthName] !== undefined) monthlyMap[monthName].positive++;
+    } else if (review.rating === 3) {
+      totalNeutral++;
     } else if (review.rating <= 2) {
       totalNegative++;
       if (monthlyMap[monthName] !== undefined) monthlyMap[monthName].negative++;
@@ -356,7 +362,7 @@ export function scoreReviews(
     net: (monthlyMap[m]?.positive ?? 0) - (monthlyMap[m]?.negative ?? 0),
   }));
 
-  return { totalPositive, totalNegative, monthlyBreakdown };
+  return { totalPositive, totalNeutral, totalNegative, monthlyBreakdown };
 }
 
 export function scoreAllTime(reviews: Array<{ rating: number }>) {

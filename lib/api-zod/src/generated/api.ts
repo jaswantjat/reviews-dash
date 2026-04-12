@@ -22,6 +22,9 @@ export const HealthCheckResponse = zod.object({
 export const GetDashboardResponse = zod.object({
   netScore: zod.number().describe("Net score (positive - negative)"),
   positive: zod.number().describe("Total positive reviews (4-5 stars)"),
+  neutral: zod
+    .number()
+    .describe("Total neutral reviews (3 stars) since the challenge started"),
   negative: zod.number().describe("Total negative reviews (1-2 stars)"),
   objective: zod.number().describe("Target net score for the trimester"),
   totalFetched: zod

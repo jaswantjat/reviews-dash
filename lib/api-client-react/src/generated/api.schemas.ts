@@ -39,6 +39,8 @@ export interface DashboardData {
   netScore: number;
   /** Total positive reviews (4-5 stars) */
   positive: number;
+  /** Total neutral reviews (3 stars) since the challenge started */
+  neutral: number;
   /** Total negative reviews (1-2 stars) */
   negative: number;
   /** Target net score for the trimester */

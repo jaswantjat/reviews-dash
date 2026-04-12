@@ -1,43 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-
-// ─── HTML SANITISER ────────────────────────────────────────────────────────
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-// ─── TYPES ────────────────────────────────────────────────────────────────
-interface RecentReview {
-  rating: number;
-  isoDate: string;
-  text: string;
-  author: string;
-}
-
-interface DashboardData {
-  netScore: number;
-  positive: number;
-  negative: number;
-  objective: number;
-  allTimePositive: number;
-  allTimeNegative: number;
-  allTimeTotal: number;
-  googleTotalReviews: number;
-  googleAvgRating: number;
-  trimesterName: string;
-  trimesterStart: string;
-  trimesterEnd: string;
-  recentActivity: RecentReview[];
-}
+import { useState, useEffect, useRef } from "react";
+import { useDashboard } from "./hooks/use-dashboard";
+import {
+  daysRemaining,
+  daysUntilStart,
+  formatStartDate,
+  getChallengeSentimentStats,
+  quarterRange,
+  toReviewCards,
+  type ReviewCardItem,
+} from "./lib/dashboard-model";
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────
 const MOTIV = [
@@ -48,186 +19,6 @@ const MOTIV = [
   "La próxima reseña puede llegar de tu próxima llamada.",
   "Trato excelente → cliente feliz → reseña en Google.",
 ];
-
-// ─── HELPERS ───────────────────────────────────────────────────────────────
-function nameToHue(name: string): number {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff;
-  return Math.abs(h) % 360;
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function timeAgoES(isoDate: string): string {
-  const diffMs = Date.now() - new Date(isoDate).getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 2) return "ahora mismo";
-  if (diffMin < 60) return `hace ${diffMin} min`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `hace ${diffH} h`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD === 1) return "hace 1 día";
-  if (diffD < 30) return `hace ${diffD} días`;
-  const diffW = Math.floor(diffD / 7);
-  if (diffW < 6) return `hace ${diffW} semanas`;
-  const diffMo = Math.floor(diffD / 30);
-  if (diffMo === 1) return "hace 1 mes";
-  return `hace ${diffMo} meses`;
-}
-
-function daysRemaining(endDate: string): number {
-  const end = new Date(endDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((end.getTime() - today.getTime()) / 86400000);
-  return Math.max(0, diff);
-}
-
-function daysUntilStart(startDate: string): number {
-  const start = new Date(startDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  start.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((start.getTime() - today.getTime()) / 86400000);
-  return Math.max(0, diff);
-}
-
-function formatStartDate(isoDate: string): string {
-  const ES_MONTHS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-  const d = new Date(isoDate);
-  return `${d.getDate()} ${ES_MONTHS[d.getMonth()]}`;
-}
-
-function quarterRange(start: string, end: string): string {
-  const ES_MONTHS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-  const s = new Date(start);
-  const e = new Date(end);
-  return `${ES_MONTHS[s.getMonth()]} – ${ES_MONTHS[e.getMonth()]} ${e.getFullYear()}`;
-}
-
-function normalizeDate(iso: string): string {
-  return iso.replace(/\.\d+Z$/, "Z");
-}
-
-function toReviewCards(reviews: RecentReview[]) {
-  // 1. Deduplicate: same second + rating → prefer named author and/or text
-  const seen = new Map<string, RecentReview>();
-  for (const r of reviews) {
-    const key = `${normalizeDate(r.isoDate)}::${r.rating}`;
-    const existing = seen.get(key);
-    if (!existing) {
-      seen.set(key, r);
-    } else {
-      const existingIsAnon = !existing.author || existing.author === "Anonymous";
-      const newIsAnon = !r.author || r.author === "Anonymous";
-      if (existingIsAnon && !newIsAnon) {
-        seen.set(key, r);
-      } else if (!existing.text?.trim() && r.text?.trim()) {
-        seen.set(key, r);
-      }
-    }
-  }
-  // 2. Filter: skip anonymous reviews with no text (zero value to viewer)
-  return Array.from(seen.values())
-    .filter(r => {
-      const isAnon = !r.author || r.author === "Anonymous";
-      return !isAnon || (r.text && r.text.trim().length > 0);
-    })
-    .map((r, i) => {
-      const hue = nameToHue(r.author);
-      const sat = 55 + (hue % 20);
-      const lit = 38 + (hue % 20);
-      return {
-        id: i,
-        name: r.author,
-        ini: initials(r.author),
-        hue,
-        sat: `${sat}%`,
-        lit: `${lit}%`,
-        r: r.rating,
-        t: timeAgoES(r.isoDate),
-        txt: stripHtml(r.text) || "Sin texto de reseña.",
-      };
-    });
-}
-
-// ─── LIVE DATA HOOK ────────────────────────────────────────────────────────
-const API_REST = "/api/dashboard";
-const API_SSE  = "/api/dashboard/stream";
-
-function useDashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState(false);
-  const esRef        = useRef<EventSource | null>(null);
-  const retryRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryDelayMs = useRef(2000); // exponential backoff: starts at 2s
-  const mountedRef   = useRef(true);
-
-  const connectSSE = useCallback(() => {
-    if (!mountedRef.current) return;
-    if (esRef.current) {
-      esRef.current.close();
-      esRef.current = null;
-    }
-    const es = new EventSource(API_SSE);
-    esRef.current = es;
-
-    es.addEventListener("dashboard", (e: MessageEvent) => {
-      if (!mountedRef.current) return;
-      try {
-        setData(JSON.parse(e.data));
-        setError(false);
-        retryDelayMs.current = 2000; // reset backoff on successful data
-      } catch {/* ignore parse errors */}
-    });
-
-    es.onerror = () => {
-      es.close();
-      esRef.current = null;
-      if (!mountedRef.current) return;
-      // REST poll for latest data immediately
-      fetch(API_REST)
-        .then(r => r.json())
-        .then(d => { if (mountedRef.current) { setData(d); setError(false); } })
-        .catch(() => { if (mountedRef.current) setError(true); });
-      // Exponential backoff: 2s → 4s → 8s → 16s → 30s max
-      const delay = retryDelayMs.current;
-      retryDelayMs.current = Math.min(delay * 2, 30000);
-      retryRef.current = setTimeout(connectSSE, delay);
-    };
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-
-    // Initial REST load for fast first paint
-    fetch(API_REST)
-      .then(r => r.json())
-      .then(d => { if (mountedRef.current) { setData(d); setError(false); } })
-      .catch(() => { if (mountedRef.current) setError(true); });
-
-    // Then upgrade to SSE
-    connectSSE();
-
-    return () => {
-      mountedRef.current = false;
-      esRef.current?.close();
-      esRef.current = null;
-      if (retryRef.current) {
-        clearTimeout(retryRef.current);
-        retryRef.current = null;
-      }
-    };
-  }, [connectSSE]);
-
-  return { data, error };
-}
 
 // ─── STAR PATH ─────────────────────────────────────────────────────────────
 const SP = "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z";
@@ -477,19 +268,7 @@ function MotivLine() {
 }
 
 // ─── REVIEW CARD ───────────────────────────────────────────────────────────
-interface ReviewItem {
-  id: number;
-  name: string;
-  ini: string;
-  hue: number;
-  sat: string;
-  lit: string;
-  r: number;
-  t: string;
-  txt: string;
-}
-
-function ReviewCard({ review, cls }: { review: ReviewItem; cls: string }) {
+function ReviewCard({ review, cls }: { review: ReviewCardItem; cls: string }) {
   const avatarBg = `hsl(${review.hue}, ${review.sat}, ${review.lit})`;
   const avatarShadow = `hsl(${review.hue}, ${review.sat}, ${review.lit}, 0.35)`;
   return (
@@ -590,14 +369,7 @@ export default function App() {
   const RATING        = data?.googleAvgRating ?? 4.6;
   // TOTAL is always Google's authoritative count
   const TOTAL         = data?.googleTotalReviews ?? 0;
-  // Scale DB positive/negative to sum to Google's total so the chips always add up
-  const DB_TOTAL      = data?.allTimeTotal ?? 0;
-  const SCALE         = DB_TOTAL > 0 && TOTAL > 0 ? TOTAL / DB_TOTAL : 1;
-  const POSITIVE      = DB_TOTAL > 0 ? Math.round((data?.allTimePositive ?? 0) * SCALE) : 0;
-  const NEUTRAL_RAW   = Math.max(0, (data?.allTimeTotal ?? 0) - (data?.allTimePositive ?? 0) - (data?.allTimeNegative ?? 0));
-  const NEUTRAL       = DB_TOTAL > 0 ? Math.round(NEUTRAL_RAW * SCALE) : 0;
-  // Derive NEGATIVE as remainder so pos+neu+neg always sums exactly to TOTAL (no rounding drift)
-  const NEGATIVE      = DB_TOTAL > 0 ? Math.max(0, TOTAL - POSITIVE - NEUTRAL) : 0;
+  const { positive: POSITIVE, neutral: NEUTRAL, negative: NEGATIVE } = getChallengeSentimentStats(data);
   const DAYS          = daysRemaining(data?.trimesterEnd ?? "2026-06-30");
   const PRE_Q2        = data ? (() => { const t = new Date(); t.setHours(0,0,0,0); const s = new Date(data.trimesterStart); s.setHours(0,0,0,0); return t < s; })() : false;
   const DAYS_TO_START = data ? daysUntilStart(data.trimesterStart) : 0;
@@ -758,19 +530,19 @@ export default function App() {
               <StatChip label="Positivas" value={cntPos.toLocaleString()}
                 bg="var(--green-bg)" border="var(--green-border)"
                 labelColor="var(--green-mid)" valColor="var(--green)"
-                subtext="4–5★" subtextColor="#34D399"
+                subtext="4–5★ desde el reto" subtextColor="#34D399"
                 compact
               />
               <StatChip label="Neutrales" value={cntNeutral.toLocaleString()}
                 bg="var(--amber-bg)" border="var(--amber-border)"
                 labelColor="var(--amber-mid)" valColor="var(--amber)"
-                subtext="3★" subtextColor="var(--amber-mid)"
+                subtext="3★ desde el reto" subtextColor="var(--amber-mid)"
                 compact
               />
               <StatChip label="Negativas" value={cntNeg.toLocaleString()}
                 bg="var(--red-bg)" border="var(--red-border)"
                 labelColor="var(--red-mid)" valColor="var(--red)"
-                subtext="1–2★" subtextColor="#FCA5A5"
+                subtext="1–2★ desde el reto" subtextColor="#FCA5A5"
                 compact
               />
             </div>

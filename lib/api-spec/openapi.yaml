@@ -120,6 +120,9 @@ components:
         positive:
           type: integer
           description: Total positive reviews (4-5 stars)
+        neutral:
+          type: integer
+          description: Total neutral reviews (3 stars) since the challenge started
         negative:
           type: integer
           description: Total negative reviews (1-2 stars)
@@ -187,6 +190,7 @@ components:
       required:
         - netScore
         - positive
+        - neutral
         - negative
         - objective
         - totalFetched

@@ -24,6 +24,7 @@ export interface RecentReview {
 export interface DashboardCache {
   netScore: number;
   positive: number;
+  neutral: number;
   negative: number;
   objective: number;
   totalFetched: number;
@@ -84,6 +85,7 @@ export function buildEmptyDashboard(): DashboardCache {
   return {
     netScore: 0,
     positive: 0,
+    neutral: 0,
     negative: 0,
     objective: CONFIG.trimester.objective,
     totalFetched: 0,
